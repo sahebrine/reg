@@ -1,6 +1,15 @@
+import random
+import string
 from flask import Flask, request, render_template_string, redirect, url_for, Response
 import subprocess
 app = Flask(__name__)
+def generate_code(length=8):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+sessions = {}
+@app.route("/clear_session/<code>")
+def clear_session(code):
+    sessions[code] = "cleared"
+    return "ok"
 base_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -244,13 +253,7 @@ def generate_output(sessionid):
 
     for line in iter(process.stdout.readline, ''):
         line = line.strip()
-        color = "#fff"
-        if "❌ " in line:
-            color = "red"
-        elif "✅" in line:
-            color = "green"
-        else:
-            color = "white"
+        color = "white"
         yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
     process.stdout.close()
     process.wait()
@@ -259,7 +262,9 @@ def home():
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
         if sessionid:
-            return redirect(url_for("result", sessionid=sessionid))
+            code = generate_code(8)
+            sessions[code] = sessionid
+            return redirect(url_for("result", code=code))
 
     template = base_template.replace(
         "{% block content %}{% endblock %}",
@@ -274,32 +279,75 @@ def home():
     )
     return render_template_string(template)
 
-@app.route("/result/<sessionid>")
-def result(sessionid):
-    template = base_template.replace(
+@app.route("/result/<code>")
+def result(code):
+    try:
+        if sessions[code] == "cleared":
+           template = base_template.replace(
+            "{% block content %}{% endblock %}",
+                f"""
+                <h2>Something went wrong</h2>
+                <div style="margin-top:20px;">
+                    <a href="/" class="btn" style="
+                        display:inline-block;
+                        text-decoration:none;
+                        text-align:center;
+                    ">Go Home</a>
+                </div>
+                """
+            )
+        else:
+            template = base_template.replace(
+                "{% block content %}{% endblock %}",
+                f"""
+                <h2>Registry Result</h2>
+                <div id="log" 
+                    style="
+                        background: #111;
+                        color: #fff;
+                        padding: 15px;
+                        height: 300px;
+                        max-width: 300px;
+                        margin: 20px auto;
+                        overflow-y: auto;
+                        font-family: monospace;
+                        font-size: 14px;
+                        border-radius: 12px;
+                        box-shadow: 0 0 15px rgba(255,255,255,0.2);
+                    ">
+                </div>
+                <script>
+                var source = new EventSource("/stream/{code}");
+                source.onmessage = function(event) {{
+                    var logDiv = document.getElementById("log");
+                    logDiv.innerHTML += event.data;
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                }};
+                source.onerror = function() {{
+                    source.close();
+                    fetch("/clear_session/{code}");
+                }};
+                </script>
+                """
+            )
+        return render_template_string(template)
+    except:
+        template = base_template.replace(
         "{% block content %}{% endblock %}",
-        f"""
-        <h2>Registry Result</h2>
-        <div id="log" style="background:#111;color:#fff;padding:10px;height:400px;overflow:auto;font-family:monospace;"></div>
-        <script>
-        var source = new EventSource("/stream/{sessionid}");
-        source.onmessage = function(event) {{
-            var logDiv = document.getElementById("log");
-            logDiv.innerHTML += event.data;
-            logDiv.scrollTop = logDiv.scrollHeight;
-        }};
-        source.onerror = function() {{
-            source.close(); // يغلق الاتصال تلقائيًا إذا انتهت العملية
-        }};
-        </script>
-
-        """
-    )
-    return render_template_string(template)
-
-@app.route("/stream/<sessionid>")
-def stream(sessionid):
-    return Response(generate_output(sessionid), mimetype="text/event-stream")
+            f"""
+            <h2>Something went wrong</h2>
+            <div style="margin-top:20px;">
+                <a href="/" class="btn" style="
+                    display:inline-block;
+                    text-decoration:none;
+                    text-align:center;
+                ">Go Home</a>
+            </div>
+            """
+        )
+        return render_template_string(template)
+@app.route("/stream/<code>")
+def stream(code):
+    return Response(generate_output(sessions[code]), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
-
