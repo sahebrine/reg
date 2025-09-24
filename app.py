@@ -1,4 +1,3 @@
-import time
 from flask import Flask, request, render_template_string, redirect, url_for
 import subprocess
 
@@ -30,7 +29,7 @@ base_template = """
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zayrix Stats</title>
+<title>Zayrix | Register</title>
 <link rel="icon" type="image/png" href="https://i.imgur.com/6UAme8g.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@400;600;700&display=swap');
@@ -158,17 +157,28 @@ input:focus {
     color: #ff4444;
     text-shadow: 0 0 6px #800;
 }
-
 .footer {
-    margin: 30px 10px;
-    font-size: 12px;
+    margin: 40px 10px;
+    font-size: 14px;
     color: rgba(255,255,255,0.8);
+}
+.footer .credit {
+    display: block;
+    margin-top: 5px;
+    font-size: 13px;
+    color: #777;
 }
 .footer a {
     color: #fff;
     text-decoration: none;
-    margin: 0 10px;
+    margin: 0 12px;
     font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.footer a:hover {
+    text-decoration: underline;
 }
 .icon {
     width: 20px;
@@ -201,8 +211,18 @@ input:focus {
     {% block content %}{% endblock %}
 
     <div class="footer">
-        <a href="https://t.me/xiSahe" target="_blank">Telegram</a>
-        <a href="https://instagram.com/sahe" target="_blank">Instagram</a>
+        <a href="https://t.me/xiSahe" target="_blank">
+            <svg class="icon" viewBox="0 0 240 240" fill="currentColor">
+                <path d="M120,0C53.73,0,0,53.73,0,120s53.73,120,120,120,120-53.73,120-120S186.27,0,120,0Zm58.59,85.75-19.2,90.7c-1.45,6.61-5.34,8.25-10.82,5.14l-29.89-22.05-14.42,13.87c-1.59,1.59-2.92,2.92-5.96,2.92l2.13-30.27,55.11-49.79c2.39-2.13-.52-3.33-3.7-1.2l-68.1,42.91-29.26-9.14c-6.36-2-6.49-6.36,1.33-9.4l114.41-44.1c5.29-1.93,9.92,1.28,8.23,9.4Z"/>
+            </svg>
+            Telegram
+        </a>
+        <a href="https://instagram.com/sahe" target="_blank">
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7.5 2h9A5.5 5.5 0 0 1 22 7.5v9a5.5 5.5 0 0 1-5.5 5.5h-9A5.5 5.5 0 0 1 2 16.5v-9A5.5 5.5 0 0 1 7.5 2Zm0 2A3.5 3.5 0 0 0 4 7.5v9A3.5 3.5 0 0 0 7.5 20h9a3.5 3.5 0 0 0 3.5-3.5v-9A3.5 3.5 0 0 0 16.5 4h-9ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.25-.75a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5Z"/>
+            </svg>
+            Instagram
+        </a>
         <span class="credit">Developed by @sahe</span>
     </div>
 
@@ -246,7 +266,7 @@ def home():
         <h2>Enter Your Sessionid</h2>
         <form method="post" onsubmit="showLoader()">
             <input type="text" name="sessionid" placeholder="">
-            <button class="btn" type="submit">Create</button>
+            <button class="btn" type="submit">Register</button>
         </form>
         <div id="loader" class="loader"></div>
         """
@@ -258,7 +278,7 @@ def result(sessionid):
     template = base_template.replace(
         "{% block content %}{% endblock %}",
         f"""
-        <h2>Result for Created</h2>
+        <h2>Registry Result</h2>
         <div class="error-msg">{output}</div>
         """
     )
