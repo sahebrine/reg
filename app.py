@@ -1,28 +1,6 @@
-from flask import Flask, request, render_template_string, redirect, url_for
+from flask import Flask, request, render_template_string, redirect, url_for, Response
 import subprocess
-
 app = Flask(__name__)
-
-def RunProccess(sessionid):
-    args = ["./test.out", sessionid]
-    process = subprocess.Popen(
-        args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="ignore",
-        shell=False
-    )
-
-    X = ""
-    while process.poll() is None:
-        output = process.stdout.readline()
-        if output:
-            X += output
-    if "\n" in X:
-        X = X.replace("\n", "<br>")
-    return X
 base_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -252,7 +230,30 @@ function showLoader() {
 </body>
 </html>
 """
+def generate_output(sessionid):
+    exe_path = "./test.out"
+    process = subprocess.Popen(
+        [exe_path, sessionid],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="ignore",
+        shell=False
+    )
 
+    for line in iter(process.stdout.readline, ''):
+        line = line.strip()
+        color = "#fff"
+        if "❌ " in line:
+            color = "red"
+        elif "✅" in line:
+            color = "green"
+        else:
+            color = "white"
+        yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
+    process.stdout.close()
+    process.wait()
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
@@ -272,21 +273,32 @@ def home():
         """
     )
     return render_template_string(template)
+
 @app.route("/result/<sessionid>")
 def result(sessionid):
-    output = RunProccess(sessionid)
     template = base_template.replace(
         "{% block content %}{% endblock %}",
         f"""
         <h2>Registry Result</h2>
-        <div class="error-msg">{output}</div>
+        <div id="log" style="background:#111;color:#fff;padding:10px;height:400px;overflow:auto;font-family:monospace;"></div>
+        <script>
+        var source = new EventSource("/stream/{{ sessionid }}");
+        source.onmessage = function(event) {{
+            var logDiv = document.getElementById("log");
+            logDiv.innerHTML += event.data;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }};
+        source.onerror = function() {{
+            source.close(); // يغلق الاتصال تلقائيًا إذا انتهت العملية
+        }};
+        </script>
+
         """
     )
-    return render_template_string(template)
+    return render_template_string(template, sessionid=sessionid)
 
-app.jinja_env.globals['base_template'] = base_template
-app.jinja_loader = app.create_global_jinja_loader()
-app.jinja_env.from_string(base_template).stream().dump("base.html")
-
+@app.route("/stream/<sessionid>")
+def stream(sessionid):
+    return Response(generate_output(sessionid), mimetype="text/event-stream")
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5000, threaded=True)
