@@ -172,17 +172,6 @@ input:focus {
     height: 20px;
 }
 .footer a:hover { text-decoration: underline; }
-
-.loader {
-    border: 4px solid rgba(255, 255, 255, 0.1);
-    border-left-color: #fff;
-    border-radius: 50%;
-    width: 35px;
-    height: 35px;
-    animation: spin 1s linear infinite;
-    margin: 15px auto;
-    display: none;
-}
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -274,7 +263,6 @@ def home():
             <input type="text" name="sessionid" placeholder="">
             <button class="btn" type="submit">Register</button>
         </form>
-        <div id="loader" class="loader"></div>
         """
     )
     return render_template_string(template)
@@ -351,3 +339,4 @@ def stream(code):
     return Response(generate_output(sessions[code]), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
