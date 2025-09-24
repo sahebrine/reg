@@ -282,7 +282,7 @@ def result(sessionid):
         <h2>Registry Result</h2>
         <div id="log" style="background:#111;color:#fff;padding:10px;height:400px;overflow:auto;font-family:monospace;"></div>
         <script>
-        var source = new EventSource("/stream/{{ sessionid }}");
+        var source = new EventSource("/stream/{sessionid}");
         source.onmessage = function(event) {{
             var logDiv = document.getElementById("log");
             logDiv.innerHTML += event.data;
@@ -295,10 +295,11 @@ def result(sessionid):
 
         """
     )
-    return render_template_string(template, sessionid=sessionid)
+    return render_template_string(template)
 
 @app.route("/stream/<sessionid>")
 def stream(sessionid):
     return Response(generate_output(sessionid), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
