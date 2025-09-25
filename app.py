@@ -289,7 +289,7 @@ def result(code):
            template = base_template.replace(
                 "{% block content %}{% endblock %}",
                 f"""
-                <h2>Registry Result</h2>
+                <h2>Registry Log</h2>
                 <div id="log" 
                     style="
                         background: #111;
@@ -372,4 +372,5 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
