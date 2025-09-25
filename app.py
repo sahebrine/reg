@@ -6,10 +6,6 @@ app = Flask(__name__)
 def generate_code(length=8):
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
 sessions = {}
-@app.route("/clear_session/<code>")
-def clear_session(code):
-    sessions[code] = "cleared"
-    return "ok"
 base_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -172,6 +168,17 @@ input:focus {
     height: 20px;
 }
 .footer a:hover { text-decoration: underline; }
+
+.loader {
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-left-color: #fff;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    animation: spin 1s linear infinite;
+    margin: 15px auto;
+    display: none;
+}
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -228,24 +235,32 @@ function showLoader() {
 </body>
 </html>
 """
-def generate_output(sessionid):
-    exe_path = "./test.out"
-    process = subprocess.Popen(
-        [exe_path, sessionid],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        encoding="utf-8",
-        errors="ignore",
-        shell=False
-    )
-
-    for line in iter(process.stdout.readline, ''):
-        line = line.strip()
-        color = "white"
-        yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
-    process.stdout.close()
-    process.wait()
+def generate_output(code):
+    if "Thank You For Using" in sessions[code]:
+        text = sessions.get(code, "")
+        for line in text.splitlines():
+            line = line.strip()
+            color = "white"
+            yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
+    else:
+        exe_path = "./test.out"
+        process = subprocess.Popen(
+            [exe_path, sessions[code]],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            shell=False
+        )
+        sessions[code] = ""
+        for line in iter(process.stdout.readline, ''):
+            line = line.strip()
+            sessions[code] += line + "\n"
+            color = "white"
+            yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
+        process.stdout.close()
+        process.wait()
 @app.route("/", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
@@ -270,25 +285,11 @@ def home():
 @app.route("/result/<code>")
 def result(code):
     try:
-        if sessions[code] == "cleared":
+        if "Thank You For Using" in sessions[code]:
            template = base_template.replace(
-            "{% block content %}{% endblock %}",
-                f"""
-                <h2>Something went wrong</h2>
-                <div style="margin-top:20px;">
-                    <a href="/" class="btn" style="
-                        display:inline-block;
-                        text-decoration:none;
-                        text-align:center;
-                    ">Go Home</a>
-                </div>
-                """
-            )
-        else:
-            template = base_template.replace(
                 "{% block content %}{% endblock %}",
                 f"""
-                <h2>Registry Log</h2>
+                <h2>Registry Result</h2>
                 <div id="log" 
                     style="
                         background: #111;
@@ -313,7 +314,39 @@ def result(code):
                 }};
                 source.onerror = function() {{
                     source.close();
-                    fetch("/clear_session/{code}");
+                }};
+                </script>
+                """
+            )
+        else:
+            template = base_template.replace(
+                "{% block content %}{% endblock %}",
+                f"""
+                <h2>Registry Result</h2>
+                <div id="log" 
+                    style="
+                        background: #111;
+                        color: #fff;
+                        padding: 15px;
+                        height: 300px;
+                        max-width: 300px;
+                        margin: 20px auto;
+                        overflow-y: auto;
+                        font-family: monospace;
+                        font-size: 14px;
+                        border-radius: 12px;
+                        box-shadow: 0 0 15px rgba(255,255,255,0.2);
+                    ">
+                </div>
+                <script>
+                var source = new EventSource("/stream/{code}");
+                source.onmessage = function(event) {{
+                    var logDiv = document.getElementById("log");
+                    logDiv.innerHTML += event.data;
+                    logDiv.scrollTop = logDiv.scrollHeight;
+                }};
+                source.onerror = function() {{
+                    source.close();
                 }};
                 </script>
                 """
@@ -336,8 +369,6 @@ def result(code):
         return render_template_string(template)
 @app.route("/stream/<code>")
 def stream(code):
-    return Response(generate_output(sessions[code]), mimetype="text/event-stream")
+    return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
-
-
