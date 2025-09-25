@@ -261,7 +261,7 @@ def generate_output(code):
             yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
         process.stdout.close()
         process.wait()
-@app.route("/", methods=["GET", "POST"])
+@app.route("/reg", methods=["GET", "POST"])
 def home():
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
@@ -358,7 +358,7 @@ def result(code):
             f"""
             <h2>Something went wrong</h2>
             <div style="margin-top:20px;">
-                <a href="/" class="btn" style="
+                <a href="/reg" class="btn" style="
                     display:inline-block;
                     text-decoration:none;
                     text-align:center;
@@ -372,3 +372,4 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
