@@ -2,8 +2,9 @@ import subprocess
 from flask import Flask, request, render_template_string, redirect, url_for, make_response, Response
 from pymongo import MongoClient
 from datetime import datetime, timedelta, timezone
-import secrets, random, string, uuid, hashlib
+import secrets, random, string
 from functools import wraps
+import certifi
 sessions = {}
 def generate_output(code):
     if "Thank You For Using" in sessions[code]:
@@ -34,7 +35,7 @@ def generate_output(code):
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 MONGO_URI = "mongodb+srv://sahebrine_db_user:7XlD1xWNVbFvACFh@cluster0.wemjued.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client["sahebrine_db"] 
 keys_col = db["keys"]
 base_template = """
@@ -296,7 +297,7 @@ def require_activation(f):
 def create_key():
     data = request.get_json()
     name = data.get("name")
-    duration = data.get("date")  # مثل "30 days"
+    duration = data.get("date")
 
     amount, unit = duration.split()
     amount = int(amount)
@@ -351,15 +352,7 @@ def activate():
                     resp.set_cookie("device_token", device_token, max_age=60*60*24*30, httponly=True)
                     return resp
 
-    return f"""
-    <h2>Enter Your Activation Key</h2>
-    <form method="post">
-        <input type="text" name="key" placeholder="">
-        <button type="submit">Activate</button>
-    </form>
-    {f"<p style='color:red;'>{error}</p>" if error else ""}
-    """
-
+    return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>" + error + "</p>" if error else ""} """))
 
 @app.route("/reg", methods=["GET", "POST"])
 @require_activation
