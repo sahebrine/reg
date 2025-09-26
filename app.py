@@ -307,16 +307,16 @@ def create_key():
 	expires_at = None
 	unit_symbol = None
 	if unit.startswith("day"):
-		expires_at = datetime.now(UTC) + timedelta(days=amount)
+		expires_at = datetime.now(timezone.utc) + timedelta(days=amount)
 		unit_symbol = "D"
 	elif unit.startswith("month"):
-		expires_at = datetime.now(UTC) + relativedelta(months=amount)
+		expires_at = datetime.now(timezone.utc) + relativedelta(months=amount)
 		unit_symbol = "M"
 	elif unit.startswith("year"):
-		expires_at = datetime.now(UTC) + relativedelta(years=amount)
+		expires_at = datetime.now(timezone.utc) + relativedelta(years=amount)
 		unit_symbol = "Y"
 	elif unit.startswith("hour"):
-		expires_at = datetime.now(UTC) + timedelta(hours=amount)
+		expires_at = datetime.now(timezone.utc) + timedelta(hours=amount)
 		unit_symbol = "H"
 	else:
 		return {
