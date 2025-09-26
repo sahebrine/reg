@@ -413,7 +413,8 @@ def reg():
 
     name, expires_at_str = row
     expires_at = datetime.fromisoformat(expires_at_str)
-    remaining = expires_at - datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    remaining = expires_at - now
     days = remaining.days
     hours, remainder = divmod(remaining.seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
