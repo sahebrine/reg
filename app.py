@@ -13,18 +13,17 @@ app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 def generate_code(length=8):
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
 def init_db():
     conn = sqlite3.connect("app.db")
     c = conn.cursor()
-    c.execute("""CREATE TABLE IF NOT EXISTS keys (
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS keys (
         key TEXT PRIMARY KEY,
         name TEXT,
-        expires_at TEXT
-    )""")
-    c.execute("""CREATE TABLE IF NOT EXISTS devices (
-        device_token TEXT PRIMARY KEY,
-        key TEXT,
-        FOREIGN KEY(key) REFERENCES keys(key)
+        expires_at TEXT,
+        device_token TEXT,
+        used INTEGER DEFAULT 0
     )""")
     conn.commit()
     conn.close()
@@ -278,29 +277,27 @@ def require_activation(f):
         device_token = request.cookies.get("device_token", "")
         if not device_token:
             return redirect(url_for("activate", next=request.path))
+
         conn = sqlite3.connect("app.db")
         c = conn.cursor()
-        c.execute("""
-            SELECT d.device_token, k.name, k.expires_at 
-            FROM devices d
-            JOIN keys k ON d.key = k.key
-            WHERE d.device_token=?
-        """, (device_token,))
+        c.execute("SELECT name, expires_at FROM keys WHERE device_token=?", (device_token,))
         row = c.fetchone()
         conn.close()
 
         if not row:
             return redirect(url_for("activate", next=request.path))
 
-        device_token, name, expires_at = row
+        _, expires_at = row
         expires_at = datetime.fromisoformat(expires_at)
-        print("hi")
         if datetime.utcnow() > expires_at:
-            
-            return render_template_string(base_template.replace("{% block content %}{% endblock %}",
-                "<h2>Activation expired</h2><p>Key expired or session timed out.</p><a href='/' class='btn'>Activate</a>"))
+            return render_template_string(base_template.replace(
+                "{% block content %}{% endblock %}",
+                "<h2>Activation expired</h2><p>Key expired or session timed out.</p><a href='/' class='btn'>Activate</a>"
+            ))
+
         return f(*args, **kwargs)
     return wrapped
+
 @app.route("/create_key", methods=["POST"])
 def create_key():
     data = request.get_json()
@@ -328,46 +325,40 @@ def create_key():
 @app.route("/", methods=["GET", "POST"])
 def activate():
     error = None
+
     if request.method == "POST":
         key = request.form.get("key", "").strip()
         conn = sqlite3.connect("app.db")
         c = conn.cursor()
         c.execute("SELECT name, expires_at, used, device_token FROM keys WHERE key=?", (key,))
         row = c.fetchone()
+
         if not row:
             error = "❌ Invalid Key"
         else:
-            name, expires_at, used, device_token_db = row
-            expires_at = datetime.fromisoformat(expires_at)
+            name, expires_at_str, used, device_token_db = row
+            expires_at = datetime.fromisoformat(expires_at_str)
+            
             if datetime.utcnow() > expires_at:
                 error = "⏳ Key Expired"
             else:
-                # تحقق من الجهاز
                 device_token = request.cookies.get("device_token")
                 if used and device_token_db != device_token:
                     error = "⚠️ This key is already used on another device"
                 else:
                     if not device_token:
                         device_token = secrets.token_hex(16)
-                    c.execute(
-                        "UPDATE keys SET device_token=?, used=1 WHERE key=?",
-                        (device_token, key)
-                    )
+                    
+                    c.execute("UPDATE keys SET device_token=?, used=1 WHERE key=?", (device_token, key))
                     conn.commit()
                     resp = make_response(redirect(url_for("reg")))
                     resp.set_cookie("device_token", device_token, max_age=60*60*24*30, httponly=True)
                     conn.close()
                     return resp
+
         conn.close()
 
-    return render_template_string(base_template.replace("{% block content %}{% endblock %}", f"""
-        <h2>Enter Your Activation Key</h2>
-        <form method="post">
-            <input type="text" name="key" placeholder="Enter key">
-            <button type="submit">Activate</button>
-        </form>
-        {"<p style='color:red'>" + error + "</p>" if error else ""}
-    """))
+    return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>" + error + "</p>" if error else ""} """))
 
 
 def generate_output(code):
@@ -400,41 +391,35 @@ def generate_output(code):
 @require_activation
 def reg():
     device_token = request.cookies.get("device_token")
-
     if not device_token:
         return redirect(url_for("activate"))
 
     conn = sqlite3.connect("app.db")
     c = conn.cursor()
-    c.execute("SELECT key FROM devices WHERE device_token=?", (device_token,))
-    row = c.fetchone()
-    if not row:
-        conn.close()
-        return redirect(url_for("activate"))
-    key = row[0]
-    c.execute("SELECT name, expires_at FROM keys WHERE key=?", (key,))
+    c.execute("SELECT name, expires_at FROM keys WHERE device_token=?", (device_token,))
     row = c.fetchone()
     conn.close()
 
-    name = row[0] 
-    expires_at = datetime.fromisoformat(row[1]) 
-    remaining = expires_at - datetime.utcnow() 
-    time_left = f"{remaining.days}d {remaining.seconds//3600}h"
+    if not row:
+        return redirect(url_for("activate"))
 
+    name, expires_at_str = row
+    expires_at = datetime.fromisoformat(expires_at_str)
+    remaining = expires_at - datetime.utcnow()
+    time_left = f"{remaining.days}d {remaining.seconds//3600}h"
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
         if sessionid:
             code = generate_code(8)
             sessions[code] = sessionid
             return redirect(url_for("result", code=code))
-
     template = base_template.replace(
         "{% block content %}{% endblock %}",
         f"""
         <div style="max-width: 400px; margin: 30px auto; text-align: center;">
-            <div class="info">Welcome {name}</div>
+            <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
             <h2 style="margin-bottom: 10px;">Enter Your Sessionid</h2>
-            <form method="post" onsubmit="showLoader()">
+            <form method="post">
                 <input type="text" name="sessionid" placeholder="" style="margin-bottom: 15px;">
                 <button class="btn" type="submit">Register</button>
             </form>
@@ -448,7 +433,6 @@ def reg():
 
 
 @app.route("/result/<code>")
-@require_activation
 def result(code):
     try:
         if "Thank You For Using" in sessions[code]:
@@ -488,6 +472,7 @@ def result(code):
             template = base_template.replace(
                 "{% block content %}{% endblock %}",
                 f"""
+                
                 <h2>Registry Result</h2>
                 <div id="log" 
                     style="
@@ -534,9 +519,7 @@ def result(code):
         )
         return render_template_string(template)
 @app.route("/stream/<code>")
-@require_activation
 def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
-
