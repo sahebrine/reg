@@ -40,10 +40,10 @@ client = MongoClient(uri, server_api=ServerApi('1'))
 try:
     client.admin.command('ping')
     print("Pinged your deployment. You successfully connected to MongoDB!")
-    db = client["sahebrine_db"] 
-    keys_col = db["keys"]
 except Exception as e:
     print(e)
+db = client["sahebrine_db"] 
+keys_col = db["keys"]
 base_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -488,6 +488,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
