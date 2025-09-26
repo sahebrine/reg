@@ -3,12 +3,12 @@ import secrets
 import string
 import uuid
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Flask, request, render_template_string, redirect, url_for, Response, make_response
 import subprocess
 import sqlite3
-from datetime import datetime, timedelta
 from functools import wraps
+UTC = timezone.utc
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 def generate_code(length=8):
@@ -288,7 +288,7 @@ def require_activation(f):
             return redirect(url_for("activate", next=request.path))
 
         _, expires_at = row
-        expires_at = datetime.fromisoformat(expires_at)
+        expires_at = datetime.utcnow() + timedelta(days=amount)
         if datetime.utcnow() > expires_at:
             return render_template_string(base_template.replace(
                 "{% block content %}{% endblock %}",
