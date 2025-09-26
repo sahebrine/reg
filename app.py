@@ -12,7 +12,7 @@ import os
 
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
-DATABASE_URL = os.getenv("mysql://root:CUZCiplwhyNGkRMvHCXpyYIdfecCeOEF@shortline.proxy.rlwy.net:27996/")
+DATABASE_URL = os.getenv("mysql://root:CUZCiplwhyNGkRMvHCXpyYIdfecCeOEF@mysql.railway.internal:3306/")
 if DATABASE_URL and DATABASE_URL.startswith("mysql://"):
     DATABASE_URL = DATABASE_URL.replace("mysql://", "mysql+pymysql://", 1)
 
@@ -497,3 +497,4 @@ function showLoader() {
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
