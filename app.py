@@ -288,7 +288,8 @@ def require_activation(f):
 
         _, expires_at_str = row
         expires_at = datetime.fromisoformat(expires_at_str)
-        if datetime.now(timezone.utc) > expires_at:
+        now = datetime.now(timezone.utc)
+        if now > expires_at:
             return render_template_string(base_template.replace(
                 "{% block content %}{% endblock %}",
                 "<h2>Activation expired</h2><p>Key expired or session timed out.</p><a href='/' class='btn'>Activate</a>"
@@ -345,7 +346,8 @@ def activate():
         else:
             name, expires_at_str, used, device_token_db = row
             expires_at = datetime.fromisoformat(expires_at_str)
-            if datetime.utcnow() > expires_at:
+            now = datetime.now(timezone.utc)
+            if now > expires_at:
                 error = "⏳ Key Expired"
             else:
                 device_token = request.cookies.get("device_token")
