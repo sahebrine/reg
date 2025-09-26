@@ -36,7 +36,12 @@ def generate_output(code):
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 uri = "mongodb+srv://sahebrine_db_user:<db_password>@cluster0.wemjued.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-client = MongoClient(uri, server_api=ServerApi('1'))
+client = MongoClient(
+    uri,
+    server_api=ServerApi("1"),
+    tls=True,
+    tlsCAFile=certifi.where()
+)
 try:
     client.admin.command('ping')
     print("Pinged your deployment. You successfully connected to MongoDB!")
@@ -488,6 +493,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
