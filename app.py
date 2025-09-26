@@ -8,7 +8,6 @@ from flask import Flask, request, render_template_string, redirect, url_for, Res
 import subprocess
 import sqlite3
 from functools import wraps
-UTC = timezone.utc
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 def generate_code(length=8):
@@ -287,9 +286,9 @@ def require_activation(f):
         if not row:
             return redirect(url_for("activate", next=request.path))
 
-        _, expires_at = row
-        expires_at = datetime.utcnow() + timedelta(days=amount)
-        if datetime.utcnow() > expires_at:
+        _, expires_at_str = row
+        expires_at = datetime.fromisoformat(expires_at_str)
+        if datetime.now(timezone.utc) > expires_at:
             return render_template_string(base_template.replace(
                 "{% block content %}{% endblock %}",
                 "<h2>Activation expired</h2><p>Key expired or session timed out.</p><a href='/' class='btn'>Activate</a>"
@@ -346,7 +345,6 @@ def activate():
         else:
             name, expires_at_str, used, device_token_db = row
             expires_at = datetime.fromisoformat(expires_at_str)
-            
             if datetime.utcnow() > expires_at:
                 error = "⏳ Key Expired"
             else:
