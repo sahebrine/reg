@@ -403,7 +403,8 @@ def reg():
     if not row:
         return redirect(url_for("activate"))
 
-    name, expires_at = row
+    name, expires_at_str = row
+    expires_at = datetime.fromisoformat(expires_at_str)
     remaining = expires_at - datetime.utcnow()
     days = remaining.days
     hours, remainder = divmod(remaining.seconds, 3600)
@@ -526,6 +527,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
