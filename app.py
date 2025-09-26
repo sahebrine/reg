@@ -14,7 +14,7 @@ UTC = timezone.utc
 
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
-DATABASE_URL = "mysql+pymysql://root:CUZCiplwhyNGkRMvHCXpyYIdfecCeOEF@mysql.railway.internal:3306/KEYS"
+DATABASE_URL = "sqlite:///keys.db"
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
@@ -496,3 +496,4 @@ function showLoader() {
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
