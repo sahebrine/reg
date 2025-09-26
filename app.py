@@ -35,7 +35,12 @@ def generate_output(code):
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 MONGO_URI = "mongodb+srv://sahebrine_db_user:7XlD1xWNVbFvACFh@cluster0.wemjued.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-client = MongoClient(MONGO_URI, tls=True, tlsCAFile=certifi.where())
+client = MongoClient(
+    MONGO_URI,
+    tls=True,
+    tlsCAFile=certifi.where(),
+    tlsAllowInvalidCertificates=False
+)
 db = client["sahebrine_db"] 
 keys_col = db["keys"]
 base_template = """
@@ -482,4 +487,5 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
