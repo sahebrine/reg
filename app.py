@@ -8,9 +8,6 @@ import uuid
 import random
 import string
 import subprocess
-
-UTC = timezone.utc
-
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 DATABASE_URL = "sqlite:///keys.db"
@@ -495,5 +492,6 @@ function showLoader() {
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
