@@ -97,7 +97,6 @@ def create_key():
 		"name": name,
 		"expires_at": expires_at.isoformat()
 	}, 200
-
 @app.route("/", methods=["GET", "POST"])
 def activate():
     error = None
@@ -492,6 +491,7 @@ function showLoader() {
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
