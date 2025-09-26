@@ -1,6 +1,7 @@
 import subprocess
 from flask import Flask, request, render_template_string, redirect, url_for, make_response, Response
-from pymongo import MongoClient
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 from datetime import datetime, timedelta, timezone
 import secrets, random, string
 from functools import wraps
@@ -34,15 +35,15 @@ def generate_output(code):
         process.wait()
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
-MONGO_URI = "mongodb+srv://sahebrine_db_user:7XlD1xWNVbFvACFh@cluster0.wemjued.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-client = MongoClient(
-    MONGO_URI,
-    tls=True,
-    tlsCAFile=certifi.where(),
-    tlsAllowInvalidCertificates=False
-)
-db = client["sahebrine_db"] 
-keys_col = db["keys"]
+uri = "mongodb+srv://sahebrine_db_user:<db_password>@cluster0.wemjued.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+client = MongoClient(uri, server_api=ServerApi('1'))
+try:
+    client.admin.command('ping')
+    print("Pinged your deployment. You successfully connected to MongoDB!")
+    db = client["sahebrine_db"] 
+    keys_col = db["keys"]
+except Exception as e:
+    print(e)
 base_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -487,5 +488,6 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
