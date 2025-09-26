@@ -1,28 +1,27 @@
-from flask import Flask, request, redirect, url_for, render_template_string, make_response, Response
-from flask_sqlalchemy import SQLAlchemy
-from functools import wraps
-from dateutil.relativedelta import relativedelta
-from datetime import datetime, timedelta, UTC
-import secrets
-import hashlib
-import uuid
 import random
+import secrets
 import string
+import uuid
+import hashlib
+from datetime import datetime, timedelta, UTC
+from flask import Flask, request, render_template_string, redirect, url_for, Response, make_response
 import subprocess
+from functools import wraps
+from flask_sqlalchemy import SQLAlchemy
+import os
+
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 DATABASE_URL = "sqlite:///keys.db"
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False  
 db = SQLAlchemy(app)
-class Key(db.Model):
-    __tablename__ = "keys"
+class License(db.Model):
+    __tablename__ = "licenses"
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(64), unique=True, nullable=False)
-    name = db.Column(db.String(64), nullable=True)
+    code = db.Column(db.String(64), unique=True, nullable=False)
     used = db.Column(db.Boolean, default=False)
-    device_token = db.Column(db.String(64), nullable=True)
-    expires_at = db.Column(db.DateTime, nullable=True)
+
 with app.app_context():
     db.create_all()
 sessions = {}
@@ -54,7 +53,7 @@ def require_activation(f):
         if not key:
             return redirect(url_for("activate", next=request.path))
 
-        if datetime.utcnow() > key.expires_at:
+        if datetime.now(UTC) > key.expires_at:
             return render_template_string(base_template.replace(
                 "{% block content %}{% endblock %}",
                 "<h2>Activation expired</h2><p>Key expired or session timed out.</p><a href='/' class='btn'>Activate</a>"
@@ -98,6 +97,7 @@ def create_key():
 		"name": name,
 		"expires_at": expires_at.isoformat()
 	}, 200
+
 @app.route("/", methods=["GET", "POST"])
 def activate():
     error = None
@@ -490,11 +490,5 @@ function showLoader() {
 </html>
 """
 
-if __name__ == "__main__":
+if __name__ == "__main__"
     app.run(host="0.0.0.0", port=5000, threaded=True)
-
-
-
-
-
-
