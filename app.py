@@ -328,44 +328,45 @@ def create_key():
 @app.route("/", methods=["GET", "POST"])
 def activate():
     error = None
-
     if request.method == "POST":
         key = request.form.get("key", "").strip()
-
         conn = sqlite3.connect("app.db")
         c = conn.cursor()
-        c.execute("SELECT name, expires_at FROM keys WHERE key=?", (key,))
+        c.execute("SELECT name, expires_at, used, device_token FROM keys WHERE key=?", (key,))
         row = c.fetchone()
-        conn.close()
-        print(row)
         if not row:
             error = "❌ Invalid Key"
         else:
-            name, expires_at = row
+            name, expires_at, used, device_token_db = row
             expires_at = datetime.fromisoformat(expires_at)
             if datetime.utcnow() > expires_at:
                 error = "⏳ Key Expired"
             else:
+                # تحقق من الجهاز
                 device_token = request.cookies.get("device_token")
-                if not device_token:
-                    device_token = secrets.token_hex(16)
+                if used and device_token_db != device_token:
+                    error = "⚠️ This key is already used on another device"
+                else:
+                    if not device_token:
+                        device_token = secrets.token_hex(16)
+                    c.execute(
+                        "UPDATE keys SET device_token=?, used=1 WHERE key=?",
+                        (device_token, key)
+                    )
+                    conn.commit()
+                    resp = make_response(redirect(url_for("reg")))
+                    resp.set_cookie("device_token", device_token, max_age=60*60*24*30, httponly=True)
+                    conn.close()
+                    return resp
+        conn.close()
 
-                conn = sqlite3.connect("app.db")
-                c = conn.cursor()
-                c.execute("INSERT OR REPLACE INTO devices (device_token, key) VALUES (?, ?)", (device_token, key))
-                conn.commit()
-                conn.close()
-
-                resp = make_response(redirect(url_for("reg")))
-                resp.set_cookie("device_token", device_token, max_age=60*60*24*30)
-                return resp
     return render_template_string(base_template.replace("{% block content %}{% endblock %}", f"""
         <h2>Enter Your Activation Key</h2>
         <form method="post">
-            <input type="text" name="key" placeholder="">
-            <button class="btn" type="submit">Activate</button>
+            <input type="text" name="key" placeholder="Enter key">
+            <button type="submit">Activate</button>
         </form>
-        {"<p style='color:red;'>" + error + "</p>" if error else ""}
+        {"<p style='color:red'>" + error + "</p>" if error else ""}
     """))
 
 
@@ -538,3 +539,4 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
