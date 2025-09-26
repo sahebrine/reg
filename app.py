@@ -12,19 +12,14 @@ import os
 
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
-DATABASE_URL = os.getenv("mysql://root:CUZCiplwhyNGkRMvHCXpyYIdfecCeOEF@mysql.railway.internal:3306/KEYS")
-if DATABASE_URL and DATABASE_URL.startswith("mysql://"):
-    DATABASE_URL = DATABASE_URL.replace("mysql://", "mysql+pymysql://", 1)
-
+DATABASE_URL = "mysql+pymysql://root:CUZCiplwhyNGkRMvHCXpyYIdfecCeOEF@mysql.railway.internal:3306/KEYS"
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False  
 db = SQLAlchemy(app)
-class Key(db.Model):
-    __tablename__ = "keys"
-    key = db.Column(db.String(64), primary_key=True)
-    name = db.Column(db.String(64))
-    expires_at = db.Column(db.DateTime(timezone=True))
-    device_token = db.Column(db.String(64), nullable=True)
+class License(db.Model):
+    __tablename__ = "licenses"
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(64), unique=True, nullable=False)
     used = db.Column(db.Boolean, default=False)
 
 with app.app_context():
@@ -496,6 +491,6 @@ function showLoader() {
 """
 
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
     app.run(host="0.0.0.0", port=5000, threaded=True)
-
-
