@@ -1,8 +1,7 @@
 from flask import Flask, request, redirect, url_for, render_template_string, make_response, Response
 from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
-from datetime import datetime, timedelta, timezone
-from dateutil.relativedelta import relativedelta
+from datetime import datetime, timedelta, UTC
 import secrets
 import hashlib
 import uuid
@@ -496,4 +495,5 @@ function showLoader() {
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
