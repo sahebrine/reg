@@ -54,7 +54,7 @@ def require_activation(f):
         if not key:
             return redirect(url_for("activate", next=request.path))
 
-        if datetime.now(UTC) > key.expires_at:
+        if datetime.utcnow() > key.expires_at:
             return render_template_string(base_template.replace(
                 "{% block content %}{% endblock %}",
                 "<h2>Activation expired</h2><p>Key expired or session timed out.</p><a href='/' class='btn'>Activate</a>"
@@ -492,6 +492,7 @@ function showLoader() {
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
