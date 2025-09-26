@@ -1,27 +1,31 @@
-import random
-import secrets
-import string
-import uuid
-import hashlib
-from datetime import datetime, timedelta, UTC
-from flask import Flask, request, render_template_string, redirect, url_for, Response, make_response
-import subprocess
-from functools import wraps
+from flask import Flask, request, redirect, url_for, render_template_string, make_response, Response
 from flask_sqlalchemy import SQLAlchemy
-import os
+from functools import wraps
+from datetime import datetime, timedelta, timezone
+from dateutil.relativedelta import relativedelta
+import secrets
+import hashlib
+import uuid
+import random
+import string
+import subprocess
+
+UTC = timezone.utc
 
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 DATABASE_URL = "mysql+pymysql://root:CUZCiplwhyNGkRMvHCXpyYIdfecCeOEF@mysql.railway.internal:3306/KEYS"
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False  
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
-class License(db.Model):
-    __tablename__ = "licenses"
+class Key(db.Model):
+    __tablename__ = "keys"
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(64), unique=True, nullable=False)
+    key = db.Column(db.String(64), unique=True, nullable=False)
+    name = db.Column(db.String(64), nullable=True)
     used = db.Column(db.Boolean, default=False)
-
+    device_token = db.Column(db.String(64), nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
 with app.app_context():
     db.create_all()
 sessions = {}
@@ -491,6 +495,4 @@ function showLoader() {
 """
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
     app.run(host="0.0.0.0", port=5000, threaded=True)
