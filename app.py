@@ -1,33 +1,42 @@
-import random
-import secrets
-import string
-import uuid
-import hashlib
-from datetime import datetime, timedelta, timezone
-from flask import Flask, request, render_template_string, redirect, url_for, Response, make_response
 import subprocess
-import sqlite3
+from flask import Flask, request, render_template_string, redirect, url_for, make_response, Response
+from pymongo import MongoClient
+from datetime import datetime, timedelta, timezone
+import secrets, random, string, uuid, hashlib
 from functools import wraps
+sessions = {}
+def generate_output(code):
+    if "Thank You For Using" in sessions[code]:
+        text = sessions.get(code, "")
+        for line in text.splitlines():
+            line = line.strip()
+            color = "white"
+            yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
+    else:
+        exe_path = "./test.out"
+        process = subprocess.Popen(
+            [exe_path, sessions[code]],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            shell=False
+        )
+        sessions[code] = ""
+        for line in iter(process.stdout.readline, ''):
+            line = line.strip()
+            sessions[code] += line + "\n"
+            color = "white"
+            yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
+        process.stdout.close()
+        process.wait()
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
-def generate_code(length=8):
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
-
-def init_db():
-    conn = sqlite3.connect("app.db")
-    c = conn.cursor()
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS keys (
-        key TEXT PRIMARY KEY,
-        name TEXT,
-        expires_at TEXT,
-        device_token TEXT,
-        used INTEGER DEFAULT 0
-    )""")
-    conn.commit()
-    conn.close()
-init_db()
-sessions = {}
+MONGO_URI = "mongodb+srv://sahebrine_db_user:7XlD1xWNVbFvACFh@cluster0.wemjued.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+client = MongoClient(MONGO_URI)
+db = client["sahebrine_db"] 
+keys_col = db["keys"]
 base_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -258,143 +267,100 @@ function showLoader() {
 </html>
 """
 
-def make_device_token():
-    return uuid.uuid4().hex
-def short_ua_hash(user_agent: str):
-    return hashlib.sha256(user_agent.encode(errors="ignore")).hexdigest()[:32]
-def is_request_from_same_device(device_info, request):
-    ua_hash = short_ua_hash(request.headers.get("User-Agent", ""))
-    ip = request.remote_addr or ""
-    if device_info["user_agent_hash"] != ua_hash:
-        return False
-    if device_info["ip"] != ip:
-        return False
-    return True
+def generate_code(length=8):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
 def require_activation(f):
     @wraps(f)
     def wrapped(*args, **kwargs):
-        device_token = request.cookies.get("device_token", "")
+        device_token = request.cookies.get("device_token")
         if not device_token:
             return redirect(url_for("activate", next=request.path))
 
-        conn = sqlite3.connect("app.db")
-        c = conn.cursor()
-        c.execute("SELECT name, expires_at FROM keys WHERE device_token=?", (device_token,))
-        row = c.fetchone()
-        conn.close()
-
-        if not row:
+        key_doc = keys_col.find_one({"device_token": device_token})
+        if not key_doc:
             return redirect(url_for("activate", next=request.path))
 
-        _, expires_at_str = row
-        expires_at = datetime.fromisoformat(expires_at_str)
-        now = datetime.now(timezone.utc)
-        if now > expires_at:
-            return render_template_string(base_template.replace(
-                "{% block content %}{% endblock %}",
-                "<h2>Activation expired</h2><p>Key expired or session timed out.</p><a href='/' class='btn'>Activate</a>"
-            ))
+        expires_at = datetime.fromisoformat(key_doc["expires_at"])
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if datetime.now(timezone.utc) > expires_at:
+            return "<h2>Activation expired</h2><p>Key expired or session timed out.</p>"
 
         return f(*args, **kwargs)
     return wrapped
 
+
 @app.route("/create_key", methods=["POST"])
 def create_key():
-	data = request.get_json()
-	name = data.get("name")
-	duration = data.get("date") 
-	amount, unit = duration.split()
-	amount = int(amount)
-	expires_at = None
-	unit_symbol = None
-	if unit.startswith("day"):
-		expires_at = datetime.now(timezone.utc) + timedelta(days=amount)
-		unit_symbol = "D"
-	elif unit.startswith("month"):
-		expires_at = datetime.now(timezone.utc) + relativedelta(months=amount)
-		unit_symbol = "M"
-	elif unit.startswith("year"):
-		expires_at = datetime.now(timezone.utc) + relativedelta(years=amount)
-		unit_symbol = "Y"
-	elif unit.startswith("hour"):
-		expires_at = datetime.now(timezone.utc) + timedelta(hours=amount)
-		unit_symbol = "H"
-	else:
-		return {
-			"success":False,
-			"error": "Invalid duration"
-		}, 400
-	new_key = f"REG-{amount}{unit_symbol}-{secrets.token_hex(8)}".upper()
-	conn = sqlite3.connect("app.db")
-	c = conn.cursor()
-	c.execute("INSERT INTO keys (key, name, expires_at) VALUES (?, ?, ?)", (new_key, name, expires_at.isoformat()))
-	conn.commit()
-	conn.close()
-	return {"success":True, "key": new_key, "name": name, "expires_at": expires_at.isoformat()}, 200
+    data = request.get_json()
+    name = data.get("name")
+    duration = data.get("date")  # مثل "30 days"
+
+    amount, unit = duration.split()
+    amount = int(amount)
+
+    if unit.startswith("day"):
+        expires_at = datetime.now(timezone.utc) + timedelta(days=amount)
+    elif unit.startswith("hour"):
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=amount)
+    else:
+        return {"success": False, "error": "Invalid duration"}, 400
+
+    new_key = f"REG-{amount}{unit[0].upper()}-{secrets.token_hex(8)}".upper()
+
+    keys_col.insert_one({
+        "key": new_key,
+        "name": name,
+        "expires_at": expires_at.isoformat(),
+        "device_token": None,
+        "used": False
+    })
+
+    return {"success": True, "key": new_key, "name": name, "expires_at": expires_at.isoformat()}, 200
+
+
 @app.route("/", methods=["GET", "POST"])
 def activate():
     error = None
     if request.method == "POST":
         key = request.form.get("key", "").strip()
-        conn = sqlite3.connect("app.db")
-        c = conn.cursor()
-        c.execute("SELECT name, expires_at, used, device_token FROM keys WHERE key=?", (key,))
-        row = c.fetchone()
+        key_doc = keys_col.find_one({"key": key})
 
-        if not row:
+        if not key_doc:
             error = "❌ Invalid Key"
         else:
-            name, expires_at_str, used, device_token_db = row
-            expires_at = datetime.fromisoformat(expires_at_str)
-            now = datetime.now(timezone.utc)
-            if now > expires_at:
+            expires_at = datetime.fromisoformat(key_doc["expires_at"])
+            if datetime.now(timezone.utc) > expires_at:
                 error = "⏳ Key Expired"
             else:
                 device_token = request.cookies.get("device_token")
-                if used and device_token_db != device_token:
+                if key_doc["used"] and key_doc["device_token"] != device_token:
                     error = "⚠️ This key is already used on another device"
                 else:
                     if not device_token:
                         device_token = secrets.token_hex(16)
-                    
-                    c.execute("UPDATE keys SET device_token=?, used=1 WHERE key=?", (device_token, key))
-                    conn.commit()
+
+                    keys_col.update_one(
+                        {"key": key},
+                        {"$set": {"device_token": device_token, "used": True}}
+                    )
+
                     resp = make_response(redirect(url_for("reg")))
                     resp.set_cookie("device_token", device_token, max_age=60*60*24*30, httponly=True)
-                    conn.close()
                     return resp
 
-        conn.close()
+    return f"""
+    <h2>Enter Your Activation Key</h2>
+    <form method="post">
+        <input type="text" name="key" placeholder="">
+        <button type="submit">Activate</button>
+    </form>
+    {f"<p style='color:red;'>{error}</p>" if error else ""}
+    """
 
-    return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>" + error + "</p>" if error else ""} """))
 
-
-def generate_output(code):
-    if "Thank You For Using" in sessions[code]:
-        text = sessions.get(code, "")
-        for line in text.splitlines():
-            line = line.strip()
-            color = "white"
-            yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
-    else:
-        exe_path = "./test.out"
-        process = subprocess.Popen(
-            [exe_path, sessions[code]],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="ignore",
-            shell=False
-        )
-        sessions[code] = ""
-        for line in iter(process.stdout.readline, ''):
-            line = line.strip()
-            sessions[code] += line + "\n"
-            color = "white"
-            yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
-        process.stdout.close()
-        process.wait()
 @app.route("/reg", methods=["GET", "POST"])
 @require_activation
 def reg():
@@ -402,29 +368,21 @@ def reg():
     if not device_token:
         return redirect(url_for("activate"))
 
-    conn = sqlite3.connect("app.db")
-    c = conn.cursor()
-    c.execute("SELECT name, expires_at FROM keys WHERE device_token=?", (device_token,))
-    row = c.fetchone()
-    conn.close()
-
-    if not row:
+    # نجيب بيانات المستخدم من MongoDB
+    key_doc = keys_col.find_one({"device_token": device_token})
+    if not key_doc:
         return redirect(url_for("activate"))
 
-    name, expires_at_str = row
-    expires_at = datetime.fromisoformat(expires_at_str)
-    now = datetime.now(timezone.utc)
-    remaining = expires_at - now
-    days = remaining.days
-    hours, remainder = divmod(remaining.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-    time_left = f"{days} days, {hours} hours, {minutes} minutes, {seconds} seconds."
+    name = key_doc.get("name")
+    expires_at = datetime.fromisoformat(key_doc["expires_at"])
+
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
         if sessionid:
             code = generate_code(8)
             sessions[code] = sessionid
             return redirect(url_for("result", code=code))
+
     template = base_template.replace(
         "{% block content %}{% endblock %}",
         f"""
@@ -436,11 +394,38 @@ def reg():
                 <button class="btn" type="submit">Register</button>
             </form>
             <p style="font-size: 12px; margin-top: 8px; color: #ccc;">
-                Subscription expires in: {time_left}
+                Subscription expires in: <span id="timer"></span>
             </p>
         </div>
+
+        <script>
+            const expiresAt = new Date("{expires_at.isoformat()}").getTime();
+
+            function updateTimer() {{
+                const now = new Date().getTime();
+                const diff = expiresAt - now;
+
+                if (diff <= 0) {{
+                    document.getElementById("timer").innerText = "Expired";
+                    clearInterval(timerInterval);
+                    return;
+                }}
+
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                document.getElementById("timer").innerText =
+                    days + "d " + hours + "h " + minutes + "m " + seconds + "s";
+            }}
+
+            updateTimer();
+            const timerInterval = setInterval(updateTimer, 1000);
+        </script>
         """
     )
+
     return render_template_string(template)
 
 
@@ -448,73 +433,38 @@ def reg():
 @require_activation
 def result(code):
     try:
-        if "Thank You For Using" in sessions[code]:
-           template = base_template.replace(
-                "{% block content %}{% endblock %}",
-                f"""
-                <h2>Registry Log</h2>
-                <div id="log" 
-                    style="
-                        background: #111;
-                        color: #fff;
-                        padding: 15px;
-                        height: 300px;
-                        max-width: 300px;
-                        margin: 20px auto;
-                        overflow-y: auto;
-                        font-family: monospace;
-                        font-size: 14px;
-                        border-radius: 12px;
-                        box-shadow: 0 0 15px rgba(255,255,255,0.2);
-                    ">
-                </div>
-                <script>
-                var source = new EventSource("/stream/{code}");
-                source.onmessage = function(event) {{
-                    var logDiv = document.getElementById("log");
-                    logDiv.innerHTML += event.data;
-                    logDiv.scrollTop = logDiv.scrollHeight;
-                }};
-                source.onerror = function() {{
-                    source.close();
-                }};
-                </script>
-                """
-            )
-        else:
-            template = base_template.replace(
-                "{% block content %}{% endblock %}",
-                f"""
-                
-                <h2>Registry Result</h2>
-                <div id="log" 
-                    style="
-                        background: #111;
-                        color: #fff;
-                        padding: 15px;
-                        height: 300px;
-                        max-width: 300px;
-                        margin: 20px auto;
-                        overflow-y: auto;
-                        font-family: monospace;
-                        font-size: 14px;
-                        border-radius: 12px;
-                        box-shadow: 0 0 15px rgba(255,255,255,0.2);
-                    ">
-                </div>
-                <script>
-                var source = new EventSource("/stream/{code}");
-                source.onmessage = function(event) {{
-                    var logDiv = document.getElementById("log");
-                    logDiv.innerHTML += event.data;
-                    logDiv.scrollTop = logDiv.scrollHeight;
-                }};
-                source.onerror = function() {{
-                    source.close();
-                }};
-                </script>
-                """
-            )
+        template = base_template.replace(
+            "{% block content %}{% endblock %}",
+            f"""
+            <h2>Registry Result</h2>
+            <div id="log" 
+                style="
+                    background: #111;
+                    color: #fff;
+                    padding: 15px;
+                    height: 300px;
+                    max-width: 300px;
+                    margin: 20px auto;
+                    overflow-y: auto;
+                    font-family: monospace;
+                    font-size: 14px;
+                    border-radius: 12px;
+                    box-shadow: 0 0 15px rgba(255,255,255,0.2);
+                ">
+            </div>
+            <script>
+            var source = new EventSource("/stream/{code}");
+            source.onmessage = function(event) {{
+                var logDiv = document.getElementById("log");
+                logDiv.innerHTML += event.data;
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }};
+            source.onerror = function() {{
+                source.close();
+            }};
+            </script>
+            """
+        )
         return render_template_string(template)
     except:
         template = base_template.replace(
@@ -531,7 +481,10 @@ def result(code):
             """
         )
         return render_template_string(template)
+
+
 @app.route("/stream/<code>")
+@require_activation
 def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
