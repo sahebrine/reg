@@ -433,6 +433,7 @@ def reg():
 
 
 @app.route("/result/<code>")
+@require_activation
 def result(code):
     try:
         if "Thank You For Using" in sessions[code]:
@@ -523,3 +524,4 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
