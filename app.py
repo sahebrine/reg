@@ -298,8 +298,7 @@ def require_activation(f):
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
         if datetime.now(timezone.utc) > expires_at:
-            return "<h2>Activation expired</h2><p>Key expired or session timed out.</p>"
-
+            return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>Key expired or session timed out."} """))
         return f(*args, **kwargs)
     return wrapped
 
