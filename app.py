@@ -328,6 +328,12 @@ def create_key():
         expires_at = datetime.now(timezone.utc) + timedelta(days=amount)
     elif unit.startswith("hour"):
         expires_at = datetime.now(timezone.utc) + timedelta(hours=amount)
+    elif unit.startswith("weeks"):
+        expires_at = datetime.now(timezone.utc) + timedelta(weeks=amount)
+    elif unit.startswith("month"):
+        expires_at = datetime.now(timezone.utc) + timedelta(months=amount)
+    elif unit.startswith("minute"):
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=amount)
     else:
         return {"success": False, "error": "Invalid duration"}, 400
 
