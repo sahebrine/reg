@@ -7,8 +7,20 @@ import secrets, random, string
 from functools import wraps
 import certifi
 from dateutil.relativedelta import relativedelta
+import os
+from werkzeug.utils import secure_filename
+
 sessions = {}
 def generate_output(code):
+    data = sessions.get(code)
+    if not data:
+        color = "white"
+        yield f"data: <span style='color:{color}'>Code is wrong !</span><br>\n\n"
+        return
+    sessionid = data["sessionid"]
+    name = data["name"]
+    bio = data["bio"]
+    image_url = data["image_url"]
     if "Thank You For Using" in sessions[code]:
         text = sessions.get(code, "")
         for line in text.splitlines():
@@ -18,7 +30,7 @@ def generate_output(code):
     else:
         exe_path = "./test.out"
         process = subprocess.Popen(
-            [exe_path, sessions[code]],
+            [exe_path, sessionid, name, bio, "https://z.zayrix.info" + image_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -36,6 +48,10 @@ def generate_output(code):
         process.wait()
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 uri = "mongodb+srv://sahebrine_db_user:7XlD1xWNVbFvACFh@cluster0.wemjued.mongodb.net/?retryWrites=true&w=majority"
 client = MongoClient(
     uri,
@@ -401,60 +417,97 @@ def reg():
     device_token = request.cookies.get("device_token")
     if not device_token:
         return redirect(url_for("activate"))
+
     key_doc = keys_col.find_one({"device_token": device_token})
     if not key_doc:
         return redirect(url_for("activate"))
-    name = key_doc.get("name")
+    name = key_doc.get("name", "")
     expires_at = datetime.fromisoformat(key_doc["expires_at"])
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
+        name = request.form.get("name", "").strip()
+        bio = request.form.get("bio", "").strip()
+        print(request.form.get)
+        file = request.files.get("image")
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
+            image_url = f"/{filepath}"
+        keys_col.update_one(
+            {"device_token": device_token},
+            {"$set": {"name": name, "bio": bio, "image_url": image_url}}
+        )
         if sessionid:
             code = generate_code(8)
-            sessions[code] = sessionid
+            sessions[code] = {
+                "sessionid": sessionid,
+                "name": name,
+                "bio": bio,
+                "image_url": image_url
+            }
             return redirect(url_for("result", code=code))
-
     template = base_template.replace(
-        "{% block content %}{% endblock %}",
-        f"""
-        <div style="max-width: 400px; margin: 30px auto; text-align: center;">
-            <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
+    "{% block content %}{% endblock %}",
+    f"""
+    <div style="max-width: 400px; margin: 30px auto; text-align: center;">
+        <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
+        <form method="post" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px; text-align:left;">
             <h2 style="margin-bottom: 10px;">Enter Your Sessionid</h2>
-            <form method="post">
-                <input type="text" name="sessionid" placeholder="" style="margin-bottom: 15px;">
-                <button class="btn" type="submit">Register</button>
-            </form>
-            <p style="font-size: 12px; margin-top: 8px; color: #ccc;">
-                Subscription expires in: <span id="timer"></span>
-            </p>
-        </div>
+            <input type="text" name="sessionid" placeholder="" value="" class="input-field">
+            <h2 style="margin-bottom: 10px;">Enter Your Name</h2>
+            <input type="text" name="name" placeholder="" value="" class="input-field">
+            <h2 style="margin-bottom: 10px;">Enter Your bio</h2>
+            <input type="text" name="bio" placeholder="" value="" class="input-field">
+            <label for="image" id="uploadBtn" class="btn" style="cursor:pointer; text-align:center;">
+                Upload Your Avatar
+            </label>
+            <input type="file" id="image" name="image" accept="image/*" style="display:none;">
+            <div id="preview" style="margin-top:10px; text-align:center;"></div>
+            <button class="btn" type="submit" style="margin-top:10px;">Register</button>
+        </form>
+        
+        <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
+            Subscription expires in: <span id="timer"></span>
+        </p>
+    </div>
 
-        <script>
-            const expiresAt = new Date("{expires_at.isoformat()}").getTime();
+    <script>
+        const imageInput = document.getElementById("image");
+        const preview = document.getElementById("preview");
+        const uploadBtn = document.getElementById("uploadBtn");
 
-            function updateTimer() {{
-                const now = new Date().getTime();
-                const diff = expiresAt - now;
-
-                if (diff <= 0) {{
-                    document.getElementById("timer").innerText = "Expired";
-                    clearInterval(timerInterval);
-                    return;
+        imageInput.addEventListener("change", function() {{
+            if (this.files && this.files[0]) {{
+                const reader = new FileReader();
+                reader.onload = function(e) {{
+                    uploadBtn.style.display = "none";
+                    preview.innerHTML = "<img src='" + e.target.result + "' style='max-width:150px; border-radius:8px;'>";
                 }}
-
-                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-                document.getElementById("timer").innerText =
-                    days + "d " + hours + "h " + minutes + "m " + seconds + "s";
+                reader.readAsDataURL(this.files[0]);
             }}
-
-            updateTimer();
-            const timerInterval = setInterval(updateTimer, 1000);
-        </script>
-        """
-    )
+        }});
+        const expiresAt = new Date("{expires_at.isoformat()}").getTime();
+        function updateTimer() {{
+            const now = new Date().getTime();
+            const diff = expiresAt - now;
+            if (diff <= 0) {{
+                document.getElementById("timer").innerText = "Expired";
+                clearInterval(timerInterval);
+                return;
+            }}
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            document.getElementById("timer").innerText =
+                days + "d " + hours + "h " + minutes + "m " + seconds + "s";
+        }}
+        updateTimer();
+        const timerInterval = setInterval(updateTimer, 1000);
+    </script>
+    """
+)
 
     return render_template_string(template)
 
