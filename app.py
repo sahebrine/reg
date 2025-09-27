@@ -436,6 +436,8 @@ def reg():
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(filepath)
             image_url = f"/{filepath}"
+        else:
+        	image_url = ""
         if sessionid:
             code = generate_code(8)
             sessions[code] = {
@@ -455,17 +457,14 @@ def reg():
         <form method="post" enctype="multipart/form-data" 
               style="display:flex; flex-direction:column; gap:12px; align-items:center;">
 
-            <!-- أول خانة: السيشن -->
             <input type="text" name="sessionid" placeholder="Sessionid" value="" 
                    class="input-field" style="width:100%;">
 
-            <!-- زر More Choice (صغير) -->
             <button type="button" class="btn" id="toggleMore" 
                     style="width:auto; padding:6px 12px; font-size:13px;">
                 More Choice ▼
             </button>
 
-            <!-- باقي الحقول -->
             <div id="moreFields" style="display:none; margin-top:10px; 
                  flex-direction:column; gap:12px; align-items:center; width:100%;">
 
@@ -474,7 +473,6 @@ def reg():
                 <input type="text" name="bio" placeholder="Bio" value="" 
                        class="input-field" style="width:100%;">
 
-                <!-- زر الأفاتار -->
                 <label for="image" id="uploadBtn" class="btn" 
                        style="cursor:pointer; text-align:center; width:auto; 
                               padding:6px 12px; font-size:13px;">
@@ -493,7 +491,6 @@ def reg():
     </div>
 
     <script>
-        // Preview صورة الأفاتار
         const imageInput = document.getElementById("image");
         const preview = document.getElementById("preview");
         const uploadBtn = document.getElementById("uploadBtn");
@@ -508,18 +505,14 @@ def reg():
                 reader.readAsDataURL(this.files[0]);
             }}
         }});
-
-        // إظهار/إخفاء More Choice
         const toggleBtn = document.getElementById("toggleMore");
         const moreFields = document.getElementById("moreFields");
         let expanded = false;
         toggleBtn.addEventListener("click", function() {{
             expanded = !expanded;
             moreFields.style.display = expanded ? "flex" : "none";
-            toggleBtn.innerText = expanded ? "More Choice ▲" : "More Choice ▼";
+            toggleBtn.innerText = expanded ? "Hide Choice ▲" : "More Choice ▼";
         }});
-
-        // المؤقت
         const expiresAt = new Date("{expires_at.isoformat()}").getTime();
         function updateTimer() {{
             const now = new Date().getTime();
@@ -603,8 +596,3 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
-
-
-
-
-
