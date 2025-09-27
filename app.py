@@ -299,19 +299,24 @@ def require_activation(f):
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
         if datetime.now(timezone.utc) > expires_at:
-            return render_template_string(base_template.replace(
-        "{% block content %}{% endblock %}",
-            f"""
-            <h2>Key expired.</h2>
-            <div style="margin-top:20px;">
-                <a href="/" class="btn" style="
-                    display:inline-block;
-                    text-decoration:none;
-                    text-align:center;
-                ">Go Home</a>
-            </div>
-            """
-        ))
+            resp = make_response(render_template_string(
+                base_template.replace(
+                    "{% block content %}{% endblock %}",
+                    """
+                    <h2>Key expired.</h2>
+                    <div style="margin-top:20px;">
+                        <a href="/" class="btn" style="
+                            display:inline-block;
+                            text-decoration:none;
+                            text-align:center;
+                        ">Go Home</a>
+                    </div>
+                    """
+                )
+            ))
+            resp.set_cookie("device_token", "", expires=0)
+            return resp
+
         return f(*args, **kwargs)
     return wrapped
 
