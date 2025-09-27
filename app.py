@@ -451,18 +451,23 @@ def reg():
     <div style="max-width: 400px; margin: 30px auto; text-align: center;">
         <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
         <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
-        <form method="post" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+
+        <form method="post" enctype="multipart/form-data" 
+              style="display:flex; flex-direction:column; gap:12px; text-align:left;">
             
             <!-- أول خانة: السيشن -->
             <input type="text" name="sessionid" placeholder="Sessionid" value="" class="input-field">
 
             <!-- زر More Choice -->
-            <button type="button" class="btn" id="toggleMore" style="margin-top:5px;">More Choice ▼</button>
+            <button type="button" class="btn" id="toggleMore" style="margin-top:5px;">
+                More Choice ▼
+            </button>
 
             <!-- باقي الحقول مخفية -->
-            <div id="moreFields" style="display:none; margin-top:10px;">
+            <div id="moreFields" style="display:none; margin-top:10px; flex-direction:column; gap:12px;">
                 <input type="text" name="name" placeholder="Name" value="" class="input-field">
                 <input type="text" name="bio" placeholder="Bio" value="" class="input-field">
+
                 <label for="image" id="uploadBtn" class="btn" style="cursor:pointer; text-align:center;">
                     Upload Your Avatar
                 </label>
@@ -479,7 +484,7 @@ def reg():
     </div>
 
     <script>
-        // Preview صورة
+        // Preview صورة الأفاتار
         const imageInput = document.getElementById("image");
         const preview = document.getElementById("preview");
         const uploadBtn = document.getElementById("uploadBtn");
@@ -501,7 +506,7 @@ def reg():
         let expanded = false;
         toggleBtn.addEventListener("click", function() {{
             expanded = !expanded;
-            moreFields.style.display = expanded ? "block" : "none";
+            moreFields.style.display = expanded ? "flex" : "none";
             toggleBtn.innerText = expanded ? "More Choice ▲" : "More Choice ▼";
         }});
 
@@ -527,7 +532,6 @@ def reg():
     </script>
     """
 )
-
     return render_template_string(template)
 
 
@@ -590,4 +594,5 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
