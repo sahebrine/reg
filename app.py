@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import secrets, random, string
 from functools import wraps
 import certifi
+from dateutil.relativedelta import relativedelta
 sessions = {}
 def generate_output(code):
     if "Thank You For Using" in sessions[code]:
@@ -331,7 +332,7 @@ def create_key():
     elif unit.startswith("weeks"):
         expires_at = datetime.now(timezone.utc) + timedelta(weeks=amount)
     elif unit.startswith("month"):
-        expires_at = datetime.now(timezone.utc) + timedelta(months=amount)
+        expires_at = datetime.now(timezone.utc) + relativedelta(months=amount)
     elif unit.startswith("minute"):
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=amount)
     else:
