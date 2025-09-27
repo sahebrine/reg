@@ -455,8 +455,8 @@ def reg():
     f"""
     <div style="max-width: 400px; margin: 30px auto; text-align: center;">
         <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
+        <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
         <form method="post" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px; text-align:left;">
-            <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
             <input type="text" name="sessionid" placeholder="Sessionid" value="" class="input-field">
             <input type="text" name="name" placeholder="Name" value="" class="input-field">
             <input type="text" name="bio" placeholder="Bio" value="" class="input-field">
