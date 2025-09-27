@@ -2,3 +2,4 @@ flask==3.0.3
 pymongo[srv]==4.9.1
 dnspython==2.6.1
 certifi==2024.8.30
+python-dateutil==2.8.2
