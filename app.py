@@ -335,6 +335,13 @@ def create_key():
 
 @app.route("/", methods=["GET", "POST"])
 def activate():
+    device_token = request.cookies.get("device_token")
+    if device_token:
+        key_doc = keys_col.find_one({"device_token": device_token})
+        if key_doc:
+            expires_at = datetime.fromisoformat(key_doc["expires_at"])
+            if datetime.now(timezone.utc) <= expires_at:
+                return redirect(url_for("reg"))
     error = None
     if request.method == "POST":
         key = request.form.get("key", "").strip()
@@ -371,15 +378,11 @@ def reg():
     device_token = request.cookies.get("device_token")
     if not device_token:
         return redirect(url_for("activate"))
-
-    # نجيب بيانات المستخدم من MongoDB
     key_doc = keys_col.find_one({"device_token": device_token})
     if not key_doc:
         return redirect(url_for("activate"))
-
     name = key_doc.get("name")
     expires_at = datetime.fromisoformat(key_doc["expires_at"])
-
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
         if sessionid:
@@ -493,10 +496,3 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
-
-
-
-
-
-
-
