@@ -448,43 +448,53 @@ def reg():
     template = base_template.replace(
     "{% block content %}{% endblock %}",
     f"""
-    <div style="max-width: 400px; margin: 30px auto; text-align: center;">
+    <div style="max-width: 400px; margin: 40px auto; text-align: center;">
         <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
-        <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
+        <h2 style="margin-bottom: 15px;">Enter Your Information</h2>
 
         <form method="post" enctype="multipart/form-data" 
-              style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+              style="display:flex; flex-direction:column; gap:12px; align-items:center; width:100%;">
             
-            <!-- أول خانة: السيشن -->
-            <input type="text" name="sessionid" placeholder="Sessionid" value="" class="input-field">
+            <!-- أول خانة -->
+            <input type="text" name="sessionid" placeholder="Sessionid" class="input-field" 
+                   style="width:90%; max-width:350px;">
 
             <!-- زر More Choice -->
-            <button type="button" class="btn" id="toggleMore" style="margin-top:5px;">
+            <button type="button" class="btn" id="toggleMore" 
+                    style="margin-top:5px; width:90%; max-width:350px;">
                 More Choice ▼
             </button>
 
-            <!-- باقي الحقول مخفية -->
-            <div id="moreFields" style="display:none; margin-top:10px; flex-direction:column; gap:12px;">
-                <input type="text" name="name" placeholder="Name" value="" class="input-field">
-                <input type="text" name="bio" placeholder="Bio" value="" class="input-field">
+            <!-- باقي الحقول -->
+            <div id="moreFields" style="display:none; margin-top:10px; 
+                 flex-direction:column; gap:12px; align-items:center; width:100%;">
+                
+                <input type="text" name="name" placeholder="Name" class="input-field" 
+                       style="width:90%; max-width:350px;">
+                
+                <input type="text" name="bio" placeholder="Bio" class="input-field" 
+                       style="width:90%; max-width:350px;">
 
-                <label for="image" id="uploadBtn" class="btn" style="cursor:pointer; text-align:center;">
+                <label for="image" id="uploadBtn" class="btn" 
+                       style="cursor:pointer; text-align:center; width:90%; max-width:350px;">
                     Upload Your Avatar
                 </label>
                 <input type="file" id="image" name="image" accept="image/*" style="display:none;">
                 <div id="preview" style="margin-top:10px; text-align:center;"></div>
             </div>
 
-            <button class="btn" type="submit" style="margin-top:10px;">Register</button>
+            <button class="btn" type="submit" style="margin-top:10px; width:90%; max-width:350px;">
+                Register
+            </button>
         </form>
-        
-        <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
+
+        <p style="font-size: 12px; margin-top: 15px; color: #ccc;">
             Subscription expires in: <span id="timer"></span>
         </p>
     </div>
 
     <script>
-        // Preview صورة الأفاتار
+        // Preview صورة
         const imageInput = document.getElementById("image");
         const preview = document.getElementById("preview");
         const uploadBtn = document.getElementById("uploadBtn");
@@ -506,7 +516,7 @@ def reg():
         let expanded = false;
         toggleBtn.addEventListener("click", function() {{
             expanded = !expanded;
-            moreFields.style.display = expanded ? "flex" : "none";
+            moreFields.style.display = expanded ? "block" : "none";
             toggleBtn.innerText = expanded ? "More Choice ▲" : "More Choice ▼";
         }});
 
@@ -594,5 +604,6 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
