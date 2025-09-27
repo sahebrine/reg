@@ -1,5 +1,5 @@
 import subprocess
-from flask import Flask, request, render_template_string, redirect, url_for, make_response, Response
+from flask import Flask, request, render_template_string, redirect, url_for, make_response, Response, session
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from datetime import datetime, timedelta, timezone
@@ -9,7 +9,6 @@ import certifi
 from dateutil.relativedelta import relativedelta
 import os
 from werkzeug.utils import secure_filename
-
 sessions = {}
 def generate_output(code):
     data = sessions.get(code)
@@ -66,6 +65,153 @@ except Exception as e:
     print(e)
 db = client["sahebrine_db"] 
 keys_col = db["keys"]
+DEV_USERNAME = "Sahe"
+DEV_PASSWORD = "rj4#j4n!1793@f&d"
+
+def developer_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("developer_logged_in"):
+            return redirect(url_for("developer_login"))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route("/developer/login", methods=["GET", "POST"])
+def developer_login():
+    error = None
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        if username == DEV_USERNAME and password == DEV_PASSWORD:
+            session["developer_logged_in"] = True
+            return redirect(url_for("developer_dashboard"))
+        else:
+            error = "❌ Wrong username or password"
+    return render_template_string(base_template.replace(
+        "{% block content %}{% endblock %}",
+        f"""
+        <h2>Developer Login</h2>
+        <form method="post">
+            <input type="text" name="username" placeholder="Username">
+            <input type="password" name="password" placeholder="Password">
+            <button class="btn" type="submit">Login</button>
+        </form>
+        {"<p style='color:red;'>" + error + "</p>" if error else ""}
+        """
+    ))
+
+@app.route("/developer")
+@developer_required
+def developer_dashboard():
+    keys = list(keys_col.find())
+    rows = ""
+    for k in keys:
+        status = "✅ Active" if datetime.fromisoformat(k["expires_at"]) > datetime.now(timezone.utc) else "❌ Expired"
+        used = "🔒 Used" if k.get("used") else "🟢 Open"
+        rows += f"""
+        <tr>
+            <td>{k['key']}</td>
+            <td>{k['name']}</td>
+            <td>{k['expires_at']}</td>
+            <td>{status}</td>
+            <td>{used}</td>
+            <td>
+                <a href='/developer/delete/{k["_id"]}' class='btn-reset-delete'>Delete</a>
+                <a href='/developer/reset/{k["_id"]}' class='btn-reset-delete'>Reset</a>
+            </td>
+        </tr>
+        """
+
+    return render_template_string(base_template.replace(
+        "{% block content %}{% endblock %}",
+        f"""
+        <h2>Developer Dashboard</h2>
+        <a href='/developer/create' class="btn-action" style="margin-bottom:15px; display:inline-block;">+ Create Key</a>
+        <table border="1" style="margin:20px auto; border-collapse:collapse; color:white; width:90%; max-width:800px;">
+            <tr>
+                <th>Key</th><th>Name</th><th>Expires At</th><th>Status</th><th>Usage</th><th>Actions</th>
+            </tr>
+            {rows}
+        </table>
+        """
+    ))
+
+@app.route("/developer/create", methods=["GET", "POST"])
+@developer_required
+def developer_create():
+    message = None
+    if request.method == "POST":
+        name = request.form.get("name")
+        duration = request.form.get("date")
+        amount, unit = duration.split()
+        amount = int(amount)
+
+        if unit.startswith("day"):
+            expires_at = datetime.now(timezone.utc) + timedelta(days=amount)
+        elif unit.startswith("hour"):
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=amount)
+        elif unit.startswith("weeks"):
+            expires_at = datetime.now(timezone.utc) + timedelta(weeks=amount)
+        elif unit.startswith("month"):
+            expires_at = datetime.now(timezone.utc) + relativedelta(months=amount)
+        elif unit.startswith("minute"):
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=amount)
+        else:
+            return render_template_string(base_template.replace(
+                "{% block content %}{% endblock %}",
+                f"""
+                <h2>Create New Key</h2>
+                <form method="post" style="display:flex; flex-direction:column; gap:12px; max-width:400px; margin:0 auto;">
+                    <input type="text" name="name" placeholder="Name" required class="input-field">
+                    <input type="text" name="date" placeholder="duration" required class="input-field">
+                    <button type="submit" class="btn-action">Generate</button>
+
+                </form>
+                {"<p style='color:red;margin-top:15px;text-align:center;'>❌ Invalid duration</p>"}
+                <div style="text-align:center; margin-top:10px;">
+                    <a href='/developer' class="btn-action">Back</a>
+
+                </div>
+                """
+            ))
+        new_key = f"REG-{amount}{unit[0].upper()}-{secrets.token_hex(8)}".upper()
+        keys_col.insert_one({
+            "key": new_key,
+            "name": name,
+            "expires_at": expires_at.isoformat(),
+            "device_token": None,
+            "used": False
+        })
+        message = f"✅ Key created successfully: <b>{new_key}</b>"
+
+    return render_template_string(base_template.replace(
+        "{% block content %}{% endblock %}",
+        f"""
+        <h2>Create New Key</h2>
+        <form method="post" style="display:flex; flex-direction:column; gap:12px; max-width:400px; margin:0 auto;">
+            <input type="text" name="name" placeholder="Name" required class="input-field">
+            <input type="text" name="date" placeholder="duration" required class="input-field">
+            <button type="submit" class="btn-action">Generate</button>
+            <a href='/developer' class="btn-action" style="margin-top:10px;">Back</a>
+        </form>
+        {"<p style='color:lime;margin-top:15px;text-align:center;'>" + message + "</p>" if message else ""}
+        <div style="text-align:center; margin-top:10px;">
+        </div>
+        """
+    ))
+@app.route("/developer/delete/<key_id>")
+@developer_required
+def developer_delete(key_id):
+    from bson import ObjectId
+    keys_col.delete_one({"_id": ObjectId(key_id)})
+    return redirect(url_for("developer_dashboard"))
+
+@app.route("/developer/reset/<key_id>")
+@developer_required
+def developer_reset(key_id):
+    from bson import ObjectId
+    keys_col.update_one({"_id": ObjectId(key_id)}, {"$set": {"used": False, "device_token": None}})
+    return redirect(url_for("developer_dashboard"))
 base_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -97,8 +243,8 @@ body {
     100% { background-position: 0% 50%; }
 }
 .input-field::placeholder {
-    font-weight: 700; /* يخلي الـ placeholder غامق */
-    color: #555;      /* يخليه أوضح */
+    font-weight: 700;
+    color: #555;
 }
 .header {
     padding: 15px;
@@ -138,7 +284,48 @@ form {
     gap: 15px;
     margin: 20px;
 }
-
+.btn-reset-delete {
+    position: relative;
+    padding: 3px 9px;
+    font-size: 8px;
+    font-weight: 700;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 12px;
+    border: none;
+    color: #fff;
+    background: linear-gradient(90deg, #0f0f0f, #1a1a1a, #2a2a2a, #0f0f0f);
+    background-size: 400% 400%;
+    animation: gradientFlow 8s ease infinite;
+    box-shadow: 0 0 15px rgba(255,255,255,0.25), inset 0 0 10px rgba(255,255,255,0.15);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+.btn-reset-delete:hover {
+    background: #444;
+}
+.btn-action {
+    position: relative;
+    padding: 12px 25px;
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 12px;
+    border: none;
+    color: #fff;
+    background: linear-gradient(90deg, #0f0f0f, #1a1a1a, #2a2a2a, #0f0f0f);
+    background-size: 400% 400%;
+    animation: gradientFlow 8s ease infinite;
+    box-shadow: 0 0 15px rgba(255,255,255,0.25), inset 0 0 10px rgba(255,255,255,0.15);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+.btn-action:hover {
+    background: #444;
+}
 input {
     padding: 12px;
     border-radius: 10px;
@@ -338,43 +525,6 @@ def require_activation(f):
 
         return f(*args, **kwargs)
     return wrapped
-
-
-@app.route("/create_key", methods=["POST"])
-def create_key():
-    data = request.get_json()
-    name = data.get("name")
-    duration = data.get("date")
-
-    amount, unit = duration.split()
-    amount = int(amount)
-
-    if unit.startswith("day"):
-        expires_at = datetime.now(timezone.utc) + timedelta(days=amount)
-    elif unit.startswith("hour"):
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=amount)
-    elif unit.startswith("weeks"):
-        expires_at = datetime.now(timezone.utc) + timedelta(weeks=amount)
-    elif unit.startswith("month"):
-        expires_at = datetime.now(timezone.utc) + relativedelta(months=amount)
-    elif unit.startswith("minute"):
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=amount)
-    else:
-        return {"success": False, "error": "Invalid duration"}, 400
-
-    new_key = f"REG-{amount}{unit[0].upper()}-{secrets.token_hex(8)}".upper()
-
-    keys_col.insert_one({
-        "key": new_key,
-        "name": name,
-        "expires_at": expires_at.isoformat(),
-        "device_token": None,
-        "used": False
-    })
-
-    return {"success": True, "key": new_key, "name": name, "expires_at": expires_at.isoformat()}, 200
-
-
 @app.route("/", methods=["GET", "POST"])
 def activate():
     device_token = request.cookies.get("device_token")
@@ -437,7 +587,7 @@ def reg():
             file.save(filepath)
             image_url = f"/{filepath}"
         else:
-        	image_url = ""
+            image_url = ""
         if sessionid:
             code = generate_code(8)
             sessions[code] = {
@@ -596,3 +746,4 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
