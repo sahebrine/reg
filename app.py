@@ -459,8 +459,9 @@ def reg():
             <input type="text" name="sessionid" placeholder="Sessionid" value="" 
                    class="input-field" style="width:100%;">
 
-            <!-- زر More Choice -->
-            <button type="button" class="btn" id="toggleMore" style="width:100%;">
+            <!-- زر More Choice (صغير) -->
+            <button type="button" class="btn" id="toggleMore" 
+                    style="width:auto; padding:6px 12px; font-size:13px;">
                 More Choice ▼
             </button>
 
@@ -602,6 +603,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
