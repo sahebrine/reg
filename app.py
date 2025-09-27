@@ -1,3 +1,4 @@
+import html
 import subprocess
 from flask import Flask, request, render_template_string, redirect, url_for, make_response, Response, session
 from pymongo.mongo_client import MongoClient
@@ -99,25 +100,48 @@ def developer_login():
         {"<p style='color:red;'>" + error + "</p>" if error else ""}
         """
     ))
-
 @app.route("/developer")
 @developer_required
 def developer_dashboard():
     keys = list(keys_col.find())
     rows = ""
     for k in keys:
-        status = "✅ Active" if datetime.fromisoformat(k["expires_at"]) > datetime.now(timezone.utc) else "❌ Expired"
+        expires_at = datetime.fromisoformat(k["expires_at"])
+        now = datetime.now(timezone.utc)
+        if expires_at > now:
+            delta = expires_at - now
+            days = delta.days
+            hours = delta.seconds // 3600
+            minutes = (delta.seconds % 3600) // 60
+            if days > 0:
+                remaining = f"{days} days left"
+            elif hours > 0:
+                remaining = f"{hours} hours left"
+            else:
+                remaining = f"{minutes} minutes left"
+        else:
+            remaining = "Expired"
+
+        status = "✅ Active" if expires_at > now else "❌ Expired"
         used = "🔒 Used" if k.get("used") else "🟢 Open"
+
+        key_value = k.get("key", "")
+        key_escaped = html.escape(key_value)
+        key_id = f"key-{k['_id']}"
+
         rows += f"""
         <tr>
-            <td>{k['key']}</td>
+            <td>
+                <span id="{key_id}" class="key-mask" data-key="{key_escaped}">••••••••••</span>
+                <button class="btn-key" onclick="toggleKey('{key_id}')">Show</button>
+            </td>
             <td>{k['name']}</td>
-            <td>{k['expires_at']}</td>
+            <td>{remaining}</td>
             <td>{status}</td>
             <td>{used}</td>
             <td>
-                <a href='/developer/delete/{k["_id"]}' class='btn-reset-delete'>Delete</a>
-                <a href='/developer/reset/{k["_id"]}' class='btn-reset-delete'>Reset</a>
+                <a href='/developer/reset/{k["_id"]}' class='btn-key'>Reset</a>
+                <a href='/developer/delete/{k["_id"]}' class='btn-key'>Delete</a>
             </td>
         </tr>
         """
@@ -125,17 +149,80 @@ def developer_dashboard():
     return render_template_string(base_template.replace(
         "{% block content %}{% endblock %}",
         f"""
-        <h2>Developer Dashboard</h2>
-        <a href='/developer/create' class="btn-action" style="margin-bottom:15px; display:inline-block;">+ Create Key</a>
-        <table border="1" style="margin:20px auto; border-collapse:collapse; color:white; width:90%; max-width:800px;">
-            <tr>
-                <th>Key</th><th>Name</th><th>Expires At</th><th>Status</th><th>Usage</th><th>Actions</th>
-            </tr>
-            {rows}
-        </table>
+        <h2 style="text-align:center; margin-bottom:15px;">Developer Dashboard</h2>
+        <a href='/developer/create' class="btn-action" style="margin-bottom:15px; display:block; max-width:200px; margin-left:auto; margin-right:auto; text-align:center;">+ Create Key</a>
+
+        <div style="overflow-x:auto; padding:0 10px;">
+            <table border="1" style="margin:0 auto; border-collapse:collapse; color:white; width:100%; max-width:800px;">
+                <tr>
+                    <th>Key</th><th>Name</th><th>Expires At</th><th>Status</th><th>Usage</th><th>Actions</th>
+                </tr>
+                {rows}
+            </table>
+        </div>
+
+        <style>
+            .btn-key {{
+                position: relative;
+                padding: 5px 10px;
+                font-size: 10px;
+                font-weight: 700;
+                font-family: 'Orbitron', sans-serif;
+                letter-spacing: 1px;
+                cursor: pointer;
+                border-radius: 5px;
+                border: none;
+                color: #fff;
+                background: linear-gradient(90deg, #0f0f0f, #1a1a1a, #2a2a2a, #0f0f0f);
+                background-size: 400% 400%;
+                animation: gradientFlow 8s ease infinite;
+                box-shadow: 0 0 15px rgba(255,255,255,0.25), inset 0 0 10px rgba(255,255,255,0.15);
+                transition: all 0.3s ease;
+                text-align:center;
+                display:inline-block;
+                margin-right:5px;
+            }}
+            .btn-key:hover {{
+                background: linear-gradient(90deg, #2a2a2a, #1a1a1a, #0f0f0f, #2a2a2a);
+            }}
+            .key-mask {{
+                font-family: monospace;
+                letter-spacing: 2px;
+                user-select: all;
+            }}
+            @keyframes gradientFlow {{
+                0%{{background-position:0% 50%}}
+                50%{{background-position:100% 50%}}
+                100%{{background-position:0% 50%}}
+            }}
+            @media (max-width:600px){{
+                table {{
+                    width:100%;
+                    min-width:500px;
+                }}
+            }}
+        </style>
+
+        <script>
+            function toggleKey(id) {{
+                var el = document.getElementById(id);
+                if(!el) return;
+                var btn = el.nextElementSibling;
+                var current = el.getAttribute('data-shown');
+                if(current === '1'){{
+                    el.textContent = '••••••••••';
+                    el.setAttribute('data-shown','0');
+                    if(btn) btn.textContent = 'Show';
+                }} else {{
+                    var real = el.getAttribute('data-key') || '';
+                    el.textContent = real;
+                    el.setAttribute('data-shown','1');
+                    if(btn) btn.textContent = 'Hide';
+                }}
+            }}
+        </script>
         """
     ))
-
 @app.route("/developer/create", methods=["GET", "POST"])
 @developer_required
 def developer_create():
@@ -283,27 +370,6 @@ form {
     align-items: center;
     gap: 15px;
     margin: 20px;
-}
-.btn-reset-delete {
-    position: relative;
-    padding: 3px 9px;
-    font-size: 8px;
-    font-weight: 700;
-    font-family: 'Orbitron', sans-serif;
-    letter-spacing: 1px;
-    cursor: pointer;
-    border-radius: 12px;
-    border: none;
-    color: #fff;
-    background: linear-gradient(90deg, #0f0f0f, #1a1a1a, #2a2a2a, #0f0f0f);
-    background-size: 400% 400%;
-    animation: gradientFlow 8s ease infinite;
-    box-shadow: 0 0 15px rgba(255,255,255,0.25), inset 0 0 10px rgba(255,255,255,0.15);
-    transition: all 0.3s ease;
-    overflow: hidden;
-}
-.btn-reset-delete:hover {
-    background: #444;
 }
 .btn-action {
     position: relative;
