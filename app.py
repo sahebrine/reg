@@ -298,7 +298,19 @@ def require_activation(f):
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
         if datetime.now(timezone.utc) > expires_at:
-            return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>Key expired or session timed out."} """))
+            return render_template_string(base_template.replace(
+        "{% block content %}{% endblock %}",
+            f"""
+            <h2>Key expired.</h2>
+            <div style="margin-top:20px;">
+                <a href="/" class="btn" style="
+                    display:inline-block;
+                    text-decoration:none;
+                    text-align:center;
+                ">Go Home</a>
+            </div>
+            """
+        ))
         return f(*args, **kwargs)
     return wrapped
 
@@ -478,7 +490,7 @@ def result(code):
             f"""
             <h2>Something went wrong</h2>
             <div style="margin-top:20px;">
-                <a href="/reg" class="btn" style="
+                <a href="/" class="btn" style="
                     display:inline-block;
                     text-decoration:none;
                     text-align:center;
@@ -490,7 +502,6 @@ def result(code):
 
 
 @app.route("/stream/<code>")
-@require_activation
 def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
