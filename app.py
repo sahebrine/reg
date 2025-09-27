@@ -96,7 +96,10 @@ body {
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
-
+.input-field::placeholder {
+    font-weight: 700; /* يخلي الـ placeholder غامق */
+    color: #555;      /* يخليه أوضح */
+}
 .header {
     padding: 15px;
     border-bottom: 1px solid #ffffff22;
@@ -453,12 +456,10 @@ def reg():
     <div style="max-width: 400px; margin: 30px auto; text-align: center;">
         <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
         <form method="post" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px; text-align:left;">
-            <h2 style="margin-bottom: 10px;">Enter Your Sessionid</h2>
-            <input type="text" name="sessionid" placeholder="" value="" class="input-field">
-            <h2 style="margin-bottom: 10px;">Enter Your Name</h2>
-            <input type="text" name="name" placeholder="" value="" class="input-field">
-            <h2 style="margin-bottom: 10px;">Enter Your bio</h2>
-            <input type="text" name="bio" placeholder="" value="" class="input-field">
+            <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
+            <input type="text" name="sessionid" placeholder="Sessionid" value="" class="input-field">
+            <input type="text" name="name" placeholder="Name" value="" class="input-field">
+            <input type="text" name="bio" placeholder="Bio" value="" class="input-field">
             <label for="image" id="uploadBtn" class="btn" style="cursor:pointer; text-align:center;">
                 Upload Your Avatar
             </label>
