@@ -428,24 +428,19 @@ def reg():
     expires_at = datetime.fromisoformat(key_doc["expires_at"])
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
-        name = request.form.get("name", "").strip()
+        nameacc = request.form.get("name", "").strip()
         bio = request.form.get("bio", "").strip()
-        print(request.form.get)
         file = request.files.get("image")
         if file and file.filename:
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(filepath)
             image_url = f"/{filepath}"
-        keys_col.update_one(
-            {"device_token": device_token},
-            {"$set": {"name": name, "bio": bio, "image_url": image_url}}
-        )
         if sessionid:
             code = generate_code(8)
             sessions[code] = {
                 "sessionid": sessionid,
-                "name": name,
+                "name": nameacc,
                 "bio": bio,
                 "image_url": image_url
             }
