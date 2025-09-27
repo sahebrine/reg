@@ -452,14 +452,24 @@ def reg():
         <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
         <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
         <form method="post" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:12px; text-align:left;">
+            
+            <!-- أول خانة: السيشن -->
             <input type="text" name="sessionid" placeholder="Sessionid" value="" class="input-field">
-            <input type="text" name="name" placeholder="Name" value="" class="input-field">
-            <input type="text" name="bio" placeholder="Bio" value="" class="input-field">
-            <label for="image" id="uploadBtn" class="btn" style="cursor:pointer; text-align:center;">
-                Upload Your Avatar
-            </label>
-            <input type="file" id="image" name="image" accept="image/*" style="display:none;">
-            <div id="preview" style="margin-top:10px; text-align:center;"></div>
+
+            <!-- زر More Choice -->
+            <button type="button" class="btn" id="toggleMore" style="margin-top:5px;">More Choice ▼</button>
+
+            <!-- باقي الحقول مخفية -->
+            <div id="moreFields" style="display:none; margin-top:10px;">
+                <input type="text" name="name" placeholder="Name" value="" class="input-field">
+                <input type="text" name="bio" placeholder="Bio" value="" class="input-field">
+                <label for="image" id="uploadBtn" class="btn" style="cursor:pointer; text-align:center;">
+                    Upload Your Avatar
+                </label>
+                <input type="file" id="image" name="image" accept="image/*" style="display:none;">
+                <div id="preview" style="margin-top:10px; text-align:center;"></div>
+            </div>
+
             <button class="btn" type="submit" style="margin-top:10px;">Register</button>
         </form>
         
@@ -469,6 +479,7 @@ def reg():
     </div>
 
     <script>
+        // Preview صورة
         const imageInput = document.getElementById("image");
         const preview = document.getElementById("preview");
         const uploadBtn = document.getElementById("uploadBtn");
@@ -483,6 +494,18 @@ def reg():
                 reader.readAsDataURL(this.files[0]);
             }}
         }});
+
+        // إظهار/إخفاء More Choice
+        const toggleBtn = document.getElementById("toggleMore");
+        const moreFields = document.getElementById("moreFields");
+        let expanded = false;
+        toggleBtn.addEventListener("click", function() {{
+            expanded = !expanded;
+            moreFields.style.display = expanded ? "block" : "none";
+            toggleBtn.innerText = expanded ? "More Choice ▲" : "More Choice ▼";
+        }});
+
+        // المؤقت
         const expiresAt = new Date("{expires_at.isoformat()}").getTime();
         function updateTimer() {{
             const now = new Date().getTime();
@@ -567,3 +590,4 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
