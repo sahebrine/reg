@@ -114,11 +114,11 @@ def developer_dashboard():
             hours = delta.seconds // 3600
             minutes = (delta.seconds % 3600) // 60
             if days > 0:
-                remaining = f"{days} days left"
+                remaining = f"{days} days"
             elif hours > 0:
-                remaining = f"{hours} hours left"
+                remaining = f"{hours} hours"
             else:
-                remaining = f"{minutes} minutes left"
+                remaining = f"{minutes} minutes"
         else:
             remaining = "Expired"
 
@@ -155,7 +155,7 @@ def developer_dashboard():
         <div style="overflow-x:auto; padding:0 10px;">
             <table border="1" style="margin:0 auto; border-collapse:collapse; color:white; width:100%; max-width:800px;">
                 <tr>
-                    <th>Key</th><th>Name</th><th>Expires At</th><th>Status</th><th>Usage</th><th>Actions</th>
+                    <th>Key</th><th>Name</th><th>Expire</th><th>Status</th><th>Usage</th><th>Actions</th>
                 </tr>
                 {rows}
             </table>
@@ -812,4 +812,5 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
