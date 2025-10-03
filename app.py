@@ -282,7 +282,7 @@ def developer_create():
                 </div>
                 """
             ))
-        new_key = f"REG-{amount}{unit[0].upper()}-{secrets.token_hex(8)}".upper()
+        new_key = f"ZAYRIX-{amount}{unit[0].upper()}-{secrets.token_hex(5)}".upper()
         keys_col.insert_one({
             "key": new_key,
             "name": name,
