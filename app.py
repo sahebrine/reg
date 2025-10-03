@@ -17,10 +17,8 @@ def generate_output(code):
         color = "white"
         yield f"data: <span style='color:{color}'>Code is wrong !</span><br>\n\n"
         return
+    typeing = data["type"]
     sessionid = data["sessionid"]
-    name = data["name"]
-    bio = data["bio"]
-    image_url = data["image_url"]
     if "Thank You For Using" in sessions[code]:
         text = sessions.get(code, "")
         for line in text.splitlines():
@@ -28,24 +26,47 @@ def generate_output(code):
             color = "white"
             yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
     else:
-        exe_path = "./test.out"
-        process = subprocess.Popen(
-            [exe_path, sessionid, name, bio, "https://z.zayrix.info" + image_url],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="ignore",
-            shell=False
-        )
-        sessions[code] = ""
-        for line in iter(process.stdout.readline, ''):
-            line = line.strip()
-            sessions[code] += line + "\n"
-            color = "white"
-            yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
-        process.stdout.close()
-        process.wait()
+        if typeing == "reg":
+            name = data["name"]
+            bio = data["bio"]
+            image_url = data["image_url"]
+            exe_path = "./reg.out"
+            process = subprocess.Popen(
+                [exe_path, sessionid, name, bio, "https://z.zayrix.info" + image_url],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+                shell=False
+            )
+            sessions[code] = ""
+            for line in iter(process.stdout.readline, ''):
+                line = line.strip()
+                sessions[code] += line + "\n"
+                color = "white"
+                yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
+            process.stdout.close()
+            process.wait()
+        else:
+            exe_path = "./bypass.out"
+            process = subprocess.Popen(
+                [exe_path, sessionid],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+                shell=False
+            )
+            sessions[code] = ""
+            for line in iter(process.stdout.readline, ''):
+                line = line.strip()
+                sessions[code] += line + "\n"
+                color = "white"
+                yield f"data: <span style='color:{color}'>{line}</span><br>\n\n"
+            process.stdout.close()
+            process.wait()
 app = Flask(__name__)
 app.secret_key = "REGSAHEOLDBESTTEDLOL"
 UPLOAD_FOLDER = "static/uploads"
@@ -591,6 +612,62 @@ def require_activation(f):
 
         return f(*args, **kwargs)
     return wrapped
+@app.route("/menu")
+@require_activation
+def menu():
+    device_token = request.cookies.get("device_token")
+    name = "Guest"
+    if device_token:
+        key_doc = keys_col.find_one({"device_token": device_token})
+        if key_doc:
+            name = key_doc.get("name", "Guest")
+            expires_at = datetime.fromisoformat(key_doc["expires_at"])
+
+    template = base_template.replace(
+        "{% block content %}{% endblock %}",
+        f"""
+        <div style="max-width:520px; margin:40px auto; text-align:center;">
+            <div class="info" style="font-size:16px; margin-bottom:12px;">Welcome, {name}</div>
+            <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
+                <a href="/reg" class="btn" style="min-width:160px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
+                    Register
+                </a>
+
+                <a href="/bypass" class="btn" style="min-width:160px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
+                    Bypass
+                </a>
+            </div>
+
+        <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
+            Subscription expires in: <span id="timer"></span>
+        </p>
+    </div>
+
+    <script>
+        let expanded = false;
+        const expiresAt = new Date("{expires_at.isoformat()}").getTime();
+        function updateTimer() {{
+            const now = new Date().getTime();
+            const diff = expiresAt - now;
+            if (diff <= 0) {{
+                document.getElementById("timer").innerText = "Expired";
+                clearInterval(timerInterval);
+                return;
+            }}
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            document.getElementById("timer").innerText =
+                days + "d " + hours + "h " + minutes + "m " + seconds + "s";
+        }}
+        updateTimer();
+        const timerInterval = setInterval(updateTimer, 1000);
+    </script>
+        </div>
+        """
+    )
+    return render_template_string(template)
 @app.route("/", methods=["GET", "POST"])
 def activate():
     device_token = request.cookies.get("device_token")
@@ -599,7 +676,7 @@ def activate():
         if key_doc:
             expires_at = datetime.fromisoformat(key_doc["expires_at"])
             if datetime.now(timezone.utc) <= expires_at:
-                return redirect(url_for("reg"))
+                return redirect(url_for("menu"))
     error = None
     if request.method == "POST":
         key = request.form.get("key", "").strip()
@@ -624,11 +701,76 @@ def activate():
                         {"$set": {"device_token": device_token, "used": True}}
                     )
 
-                    resp = make_response(redirect(url_for("reg")))
+                    resp = make_response(redirect(url_for("menu")))
                     resp.set_cookie("device_token", device_token, max_age=60*60*24*30, httponly=True)
                     return resp
 
     return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>" + error + "</p>" if error else ""} """))
+@app.route("/bypass", methods=["GET", "POST"])
+@require_activation
+def bypass():
+    device_token = request.cookies.get("device_token")
+    if not device_token:
+        return redirect(url_for("activate"))
+
+    key_doc = keys_col.find_one({"device_token": device_token})
+    if not key_doc:
+        return redirect(url_for("activate"))
+    name = key_doc.get("name", "")
+    expires_at = datetime.fromisoformat(key_doc["expires_at"])
+    if request.method == "POST":
+        sessionid = request.form.get("sessionid", "").strip()
+        if sessionid:
+            code = generate_code(8)
+            sessions[code] = {
+                "type": "bypass",
+                "sessionid": sessionid,
+            }
+            return redirect(url_for("result", code=code))
+    template = base_template.replace(
+    "{% block content %}{% endblock %}",
+    f"""
+    <div style="max-width: 400px; margin: 30px auto; text-align: center;">
+        <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
+        <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
+
+        <form method="post" enctype="multipart/form-data" 
+              style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+
+            <input type="text" name="sessionid" placeholder="Sessionid" value="" 
+                   class="input-field" style="width:100%;">
+            <button class="btn" type="submit" style="width:100%;">Run Bypasser</button>
+        </form>
+        
+        <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
+            Subscription expires in: <span id="timer"></span>
+        </p>
+    </div>
+
+    <script>
+        let expanded = false;
+        const expiresAt = new Date("{expires_at.isoformat()}").getTime();
+        function updateTimer() {{
+            const now = new Date().getTime();
+            const diff = expiresAt - now;
+            if (diff <= 0) {{
+                document.getElementById("timer").innerText = "Expired";
+                clearInterval(timerInterval);
+                return;
+            }}
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            document.getElementById("timer").innerText =
+                days + "d " + hours + "h " + minutes + "m " + seconds + "s";
+        }}
+        updateTimer();
+        const timerInterval = setInterval(updateTimer, 1000);
+    </script>
+    """
+)
+    return render_template_string(template)
 
 @app.route("/reg", methods=["GET", "POST"])
 @require_activation
@@ -657,6 +799,7 @@ def reg():
         if sessionid:
             code = generate_code(8)
             sessions[code] = {
+                "type": "reg",
                 "sessionid": sessionid,
                 "name": nameacc,
                 "bio": bio,
@@ -812,5 +955,6 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
