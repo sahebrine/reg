@@ -616,6 +616,8 @@ def require_activation(f):
 def menu():
     device_token = request.cookies.get("device_token")
     name = "Guest"
+    expires_at = None
+
     if device_token:
         key_doc = keys_col.find_one({"device_token": device_token})
         if key_doc:
@@ -627,46 +629,47 @@ def menu():
         f"""
         <div style="max-width:520px; margin:40px auto; text-align:center;">
             <div class="info" style="font-size:16px; margin-bottom:12px;">Welcome, {name}</div>
-            <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
-                <a href="/reg" class="btn" style="min-width:160px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
+            <div style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+                <a href="/reg" class="btn" style="width:160px; text-decoration:none; display:flex; align-items:center; justify-content:center; padding:10px;">
                     Register
                 </a>
 
-                <a href="/bypass" class="btn" style="min-width:160px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
+                <a href="/bypass" class="btn" style="width:160px; text-decoration:none; display:flex; align-items:center; justify-content:center; padding:10px;">
                     Bypass
                 </a>
             </div>
 
-        <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
-            Subscription expires in: <span id="timer"></span>
-        </p>
-    </div>
-
-    <script>
-        let expanded = false;
-        const expiresAt = new Date("{expires_at.isoformat()}").getTime();
-        function updateTimer() {{
-            const now = new Date().getTime();
-            const diff = expiresAt - now;
-            if (diff <= 0) {{
-                document.getElementById("timer").innerText = "Expired";
-                clearInterval(timerInterval);
-                return;
-            }}
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            document.getElementById("timer").innerText =
-                days + "d " + hours + "h " + minutes + "m " + seconds + "s";
-        }}
-        updateTimer();
-        const timerInterval = setInterval(updateTimer, 1000);
-    </script>
+            <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
+                Subscription expires in: <span id="timer"></span>
+            </p>
         </div>
+
+        <script>
+            if ({'true' if expires_at else 'false'}) {{
+                const expiresAt = new Date("{expires_at.isoformat()}").getTime();
+                function updateTimer() {{
+                    const now = new Date().getTime();
+                    const diff = expiresAt - now;
+                    if (diff <= 0) {{
+                        document.getElementById("timer").innerText = "Expired";
+                        clearInterval(timerInterval);
+                        return;
+                    }}
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    document.getElementById("timer").innerText =
+                        days + "d " + hours + "h " + minutes + "m " + seconds + "s";
+                }}
+                updateTimer();
+                const timerInterval = setInterval(updateTimer, 1000);
+            }}
+        </script>
         """
     )
     return render_template_string(template)
+
 @app.route("/", methods=["GET", "POST"])
 def activate():
     device_token = request.cookies.get("device_token")
@@ -954,8 +957,3 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
-
-
-
-
-
