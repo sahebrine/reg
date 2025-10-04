@@ -49,9 +49,8 @@ def generate_output(code):
             process.stdout.close()
             process.wait()
         else:
-            exe_path = "./bypass.py"
             process = subprocess.Popen(
-                [exe_path, sessionid],
+                ["python3", "./bypass.py", sessionid],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -955,6 +954,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
