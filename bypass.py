@@ -21,7 +21,7 @@ def GetInfo():
 		except:
 			pass
 		if urt == ust:
-			print("@" + ust + ", is 14 Days")
+			print("✅ @" + ust + ", is 14 Days")
 			print(f"⏳ Waiting Bypass: @" + ust + " ...")
 			return urt, ust, fbid
 		else:
@@ -75,4 +75,5 @@ for _ in range(2):
 	threading.Thread(target=Attempts).start()
 ChangeUser()
 time.sleep(1)
+
 CheckBypass()
