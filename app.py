@@ -904,11 +904,13 @@ def reg():
         return redirect(url_for("activate"))
     name = key_doc.get("name", "")
     expires_at = datetime.fromisoformat(key_doc["expires_at"])
+    
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
         nameacc = request.form.get("name", "").strip()
         bio = request.form.get("bio", "").strip()
         file = request.files.get("image")
+
         if file and file.filename:
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
@@ -916,6 +918,7 @@ def reg():
             image_url = f"/{filepath}"
         else:
             image_url = ""
+
         if sessionid:
             code = generate_code(8)
             sessions[code] = {
@@ -926,94 +929,142 @@ def reg():
                 "image_url": image_url
             }
             return redirect(url_for("result", code=code))
+
     template = base_template.replace(
-    "{% block content %}{% endblock %}",
-    f"""
-    <div style="max-width: 400px; margin: 30px auto; text-align: center;">
-        <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
-        <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
+        "{% block content %}{% endblock %}",
+        f"""
+        <div style="max-width: 400px; margin: 30px auto; text-align: center;">
+            <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
+            <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
 
-        <form method="post" enctype="multipart/form-data" 
-              style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+            <form method="post" enctype="multipart/form-data" 
+                  style="display:flex; flex-direction:column; gap:12px; align-items:center;">
 
-            <input type="text" name="sessionid" placeholder="Sessionid" value="" 
-                   class="input-field" style="width:100%;">
-
-            <button type="button" class="btn" id="toggleMore" 
-                    style="width:auto; padding:6px 12px; font-size:13px;">
-                More Choice ▼
-            </button>
-
-            <div id="moreFields" style="display:none; margin-top:10px; 
-                 flex-direction:column; gap:12px; align-items:center; width:100%;">
-
-                <input type="text" name="name" placeholder="Name" value="" 
+                <input type="text" name="sessionid" id="sessionid" placeholder="Sessionid" value="" 
                        class="input-field" style="width:100%;">
-                <input type="text" name="bio" placeholder="Bio" value="" 
-                       class="input-field" style="width:100%;">
+                <div id="session-status" style="font-size:13px; color:#ccc; min-height:18px;"></div>
 
-                <label for="image" id="uploadBtn" class="btn" 
-                       style="cursor:pointer; text-align:center; width:auto; 
-                              padding:6px 12px; font-size:13px;">
-                    + Avatar
-                </label>
-                <input type="file" id="image" name="image" accept="image/*" style="display:none;">
-                <div id="preview" style="margin-top:10px; text-align:center;"></div>
-            </div>
+                <button type="button" class="btn" id="toggleMore" 
+                        style="width:auto; padding:6px 12px; font-size:13px;">
+                    More Choice ▼
+                </button>
 
-            <button class="btn" type="submit" style="width:100%;">Register</button>
-        </form>
-        
-        <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
-            Subscription expires in: <span id="timer"></span>
-        </p>
-    </div>
+                <div id="moreFields" style="display:none; margin-top:10px; 
+                     flex-direction:column; gap:12px; align-items:center; width:100%;">
 
-    <script>
-        const imageInput = document.getElementById("image");
-        const preview = document.getElementById("preview");
-        const uploadBtn = document.getElementById("uploadBtn");
+                    <input type="text" name="name" placeholder="Name" value="" 
+                           class="input-field" style="width:100%;">
+                    <input type="text" name="bio" placeholder="Bio" value="" 
+                           class="input-field" style="width:100%;">
 
-        imageInput.addEventListener("change", function() {{
-            if (this.files && this.files[0]) {{
-                const reader = new FileReader();
-                reader.onload = function(e) {{
-                    uploadBtn.style.display = "none";
-                    preview.innerHTML = "<img src='" + e.target.result + "' style='max-width:120px; border-radius:8px;'>";
+                    <label for="image" id="uploadBtn" class="btn" 
+                           style="cursor:pointer; text-align:center; width:auto; 
+                                  padding:6px 12px; font-size:13px;">
+                        + Avatar
+                    </label>
+                    <input type="file" id="image" name="image" accept="image/*" style="display:none;">
+                    <div id="preview" style="margin-top:10px; text-align:center;"></div>
+                </div>
+
+                <button class="btn" type="submit" style="width:100%;">Register</button>
+            </form>
+            
+            <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
+                Subscription expires in: <span id="timer"></span>
+            </p>
+        </div>
+
+        <script>
+            const imageInput = document.getElementById("image");
+            const preview = document.getElementById("preview");
+            const uploadBtn = document.getElementById("uploadBtn");
+            const sessionInput = document.getElementById("sessionid");
+            const sessionStatus = document.getElementById("session-status");
+
+            // preview for avatar
+            imageInput.addEventListener("change", function() {{
+                if (this.files && this.files[0]) {{
+                    const reader = new FileReader();
+                    reader.onload = function(e) {{
+                        uploadBtn.style.display = "none";
+                        preview.innerHTML = "<img src='" + e.target.result + "' style='max-width:120px; border-radius:8px;'>";
+                    }}
+                    reader.readAsDataURL(this.files[0]);
                 }}
-                reader.readAsDataURL(this.files[0]);
+            }});
+
+            // toggle extra fields
+            const toggleBtn = document.getElementById("toggleMore");
+            const moreFields = document.getElementById("moreFields");
+            let expanded = false;
+            toggleBtn.addEventListener("click", function() {{
+                expanded = !expanded;
+                moreFields.style.display = expanded ? "flex" : "none";
+                toggleBtn.innerText = expanded ? "Hide Choice ▲" : "More Choice ▼";
+            }});
+
+            // session check
+            let typingTimer;
+            sessionInput.addEventListener("input", function() {{
+                clearTimeout(typingTimer);
+                if (sessionInput.value.trim() !== "") {{
+                    typingTimer = setTimeout(checkSession, 800);
+                }} else {{
+                    sessionStatus.innerHTML = "";
+                }}
+            }});
+
+            function checkSession() {{
+                const sessionid = sessionInput.value.trim();
+                if (!sessionid) return;
+                sessionStatus.innerHTML = "⏳ Checking Session ID...";
+                fetch("/api/check_session", {{
+                    method: "POST",
+                    headers: {{
+                        "Content-Type": "application/json"
+                    }},
+                    body: JSON.stringify({{ sessionid }})
+                }})
+                .then(res => res.json())
+                .then(data => {{
+                    if (data.ok) {{
+                        sessionStatus.style.color = "#4CAF50";
+                        sessionStatus.innerHTML = data.msg;
+                    }} else {{
+                        sessionStatus.style.color = "#ff5555";
+                        sessionStatus.innerHTML = data.msg || "❌ Invalid Session ID";
+                    }}
+                }})
+                .catch(() => {{
+                    sessionStatus.style.color = "#ff5555";
+                    sessionStatus.innerHTML = "⚠️ Error checking session";
+                }});
             }}
-        }});
-        const toggleBtn = document.getElementById("toggleMore");
-        const moreFields = document.getElementById("moreFields");
-        let expanded = false;
-        toggleBtn.addEventListener("click", function() {{
-            expanded = !expanded;
-            moreFields.style.display = expanded ? "flex" : "none";
-            toggleBtn.innerText = expanded ? "Hide Choice ▲" : "More Choice ▼";
-        }});
-        const expiresAt = new Date("{expires_at.isoformat()}").getTime();
-        function updateTimer() {{
-            const now = new Date().getTime();
-            const diff = expiresAt - now;
-            if (diff <= 0) {{
-                document.getElementById("timer").innerText = "Expired";
-                clearInterval(timerInterval);
-                return;
+
+            // timer
+            const expiresAt = new Date("{expires_at.isoformat()}").getTime();
+            function updateTimer() {{
+                const now = new Date().getTime();
+                const diff = expiresAt - now;
+                if (diff <= 0) {{
+                    document.getElementById("timer").innerText = "Expired";
+                    clearInterval(timerInterval);
+                    return;
+                }}
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                document.getElementById("timer").innerText =
+                    days + "d " + hours + "h " + minutes + "m " + seconds + "s";
             }}
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            document.getElementById("timer").innerText =
-                days + "d " + hours + "h " + minutes + "m " + seconds + "s";
-        }}
-        updateTimer();
-        const timerInterval = setInterval(updateTimer, 1000);
-    </script>
-    """
-)
+            updateTimer();
+            const timerInterval = setInterval(updateTimer, 1000);
+        </script>
+        """
+    )
     return render_template_string(template)
+
 
 
 @app.route("/result/<code>")
@@ -1075,4 +1126,5 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
