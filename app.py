@@ -766,6 +766,7 @@ def bypass():
                 "sessionid": sessionid,
             }
             return redirect(url_for("result", code=code))
+
     template = base_template.replace(
         "{% block content %}{% endblock %}",
         f"""
@@ -778,7 +779,16 @@ def bypass():
             <input id="sessionid" type="text" name="sessionid" placeholder="Sessionid" value="" 
                    class="input-field" style="width:100%;">
 
-            <div id="session-status" style="min-height:20px; margin-top:6px; width:100%; text-align:left; font-family:monospace; font-size:14px;"></div>
+            <!-- الـ status message يطلع تحت الحقل بالنص -->
+            <div id="session-status" style="
+                font-size:13px;
+                color:#ccc;
+                margin-top:4px;
+                text-align:center;
+                width:100%;
+                min-height:20px;
+                font-family:monospace;
+            "></div>
 
             <button class="btn" type="submit" id="runBypass" style="width:100%;">Run Bypasser</button>
         </form>
@@ -888,10 +898,7 @@ def bypass():
     </script>
         """
     )
-
     return render_template_string(template)
-
-
 @app.route("/reg", methods=["GET", "POST"])
 @require_activation
 def reg():
@@ -1126,5 +1133,6 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
