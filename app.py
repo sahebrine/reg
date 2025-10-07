@@ -1,6 +1,6 @@
 import html
 import subprocess
-from flask import Flask, request, render_template_string, redirect, url_for, make_response, Response, session
+from flask import Flask, request, render_template_string, redirect, url_for, make_response, Response, session, jsonify
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from datetime import datetime, timedelta, timezone
@@ -9,6 +9,7 @@ from functools import wraps
 import certifi
 from dateutil.relativedelta import relativedelta
 import os
+import requests
 from werkzeug.utils import secure_filename
 sessions = {}
 def generate_output(code):
@@ -87,7 +88,7 @@ except Exception as e:
 db = client["sahebrine_db"] 
 keys_col = db["keys"]
 DEV_USERNAME = "Sahe"
-DEV_PASSWORD = "rj4#j4n!1793@f&d"
+DEV_PASSWORD = "sahesahe"
 
 def developer_required(f):
     @wraps(f)
@@ -708,6 +709,40 @@ def activate():
                     return resp
 
     return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>" + error + "</p>" if error else ""} """))
+@app.route("/api/check_session", methods=["POST"])
+def api_check_session():
+    data = request.get_json(silent=True) or {}
+    sessionid = data.get("sessionid", "").strip()
+
+    if not sessionid:
+        return jsonify({"ok": False, "msg": "❌ Empty session ID"}), 400
+
+    headers = {
+        "User-Agent": "Instagram 297.0.0.39.120 Android (30/11; 480dpi; 1080x2168; samsung; SM-G780F; r8s; exynos990; en_US; 321039115)",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Cookie": f"sessionid={sessionid}",
+    }
+    try:
+        req = requests.get(
+            "https://i.instagram.com/api/v1/accounts/current_user/?edit=true",
+            headers=headers,
+            timeout=10
+        )
+        try:
+            r = req.json()
+        except ValueError:
+            return jsonify({"ok": False, "msg": "⚠️ Invalid response from Instagram"}), 400
+
+        if "user" in r and "username" in r["user"]:
+            username = r["user"]["username"]
+            return jsonify({"ok": True, "msg": f"✅ Logged in: @{username}"})
+        else:
+            return jsonify({"ok": False, "msg": "❌ Invalid or expired session"}), 400
+
+    except requests.exceptions.Timeout:
+        return jsonify({"ok": False, "msg": "⚠️ Request timed out"}), 408
+    except Exception as e:
+        return jsonify({"ok": False, "msg": f"⚠️ Error: {str(e)}"}), 500
 @app.route("/bypass", methods=["GET", "POST"])
 @require_activation
 def bypass():
@@ -718,8 +753,10 @@ def bypass():
     key_doc = keys_col.find_one({"device_token": device_token})
     if not key_doc:
         return redirect(url_for("activate"))
+
     name = key_doc.get("name", "")
     expires_at = datetime.fromisoformat(key_doc["expires_at"])
+
     if request.method == "POST":
         sessionid = request.form.get("sessionid", "").strip()
         if sessionid:
@@ -730,18 +767,20 @@ def bypass():
             }
             return redirect(url_for("result", code=code))
     template = base_template.replace(
-    "{% block content %}{% endblock %}",
-    f"""
+        "{% block content %}{% endblock %}",
+        f"""
     <div style="max-width: 400px; margin: 30px auto; text-align: center;">
         <div class="info" style="margin-bottom: 15px;">Welcome {name}</div>
         <h2 style="margin-bottom: 10px;">Enter Your Information</h2>
 
         <form method="post" enctype="multipart/form-data" 
               style="display:flex; flex-direction:column; gap:12px; align-items:center;">
-
-            <input type="text" name="sessionid" placeholder="Sessionid" value="" 
+            <input id="sessionid" type="text" name="sessionid" placeholder="Sessionid" value="" 
                    class="input-field" style="width:100%;">
-            <button class="btn" type="submit" style="width:100%;">Run Bypasser</button>
+
+            <div id="session-status" style="min-height:20px; margin-top:6px; width:100%; text-align:left; font-family:monospace; font-size:14px;"></div>
+
+            <button class="btn" type="submit" id="runBypass" style="width:100%;">Run Bypasser</button>
         </form>
         
         <p style="font-size: 12px; margin-top: 12px; color: #ccc;">
@@ -750,7 +789,84 @@ def bypass():
     </div>
 
     <script>
-        let expanded = false;
+    (function(){{
+        const sessionInput = document.getElementById("sessionid");
+        const statusDiv = document.getElementById("session-status");
+        const form = sessionInput.closest("form");
+        const submitBtn = document.getElementById("runBypass");
+
+        let timer = null;
+        let ongoing = false;
+        let lastOk = false;
+
+        function setStatus(text, color) {{
+            statusDiv.innerText = text;
+            statusDiv.style.color = color || "#ccc";
+        }}
+
+        async function checkSession(sessionid){{
+            if(!sessionid) {{
+                setStatus("", "#ccc");
+                lastOk = false;
+                return;
+            }}
+            setStatus("⏳ Checking Session ID...", "#ffffff");
+            ongoing = true;
+            submitBtn.disabled = true;
+
+            try {{
+                const res = await fetch("/api/check_session", {{
+                    method: "POST",
+                    headers: {{ "Content-Type": "application/json" }},
+                    body: JSON.stringify({{ sessionid: sessionid }})
+                }});
+                const data = await res.json().catch(()=>({{ ok:false, msg:"Invalid response" }}));
+
+                if(res.ok && data.ok){{
+                    setStatus(data.msg || "✅ OK", "limegreen");
+                    lastOk = true;
+                }} else {{
+                    const m = data.msg || data.error || "❌ Invalid session";
+                    setStatus(m, "tomato");
+                    lastOk = false;
+                }}
+            }} catch (e) {{
+                setStatus("⚠️ Network or server error", "orange");
+                lastOk = false;
+            }} finally {{
+                ongoing = false;
+                submitBtn.disabled = false;
+            }}
+        }}
+
+        function scheduleCheck(){{
+            if(timer) clearTimeout(timer);
+            timer = setTimeout(()=>{{
+                timer = null;
+                checkSession(sessionInput.value.trim());
+            }}, 700);
+        }}
+
+        sessionInput.addEventListener("input", function(){{
+            setStatus("", "#ccc");
+            scheduleCheck();
+        }});
+
+        sessionInput.addEventListener("blur", function(){{
+            if(timer) {{ clearTimeout(timer); timer = null; }}
+            checkSession(sessionInput.value.trim());
+        }});
+
+        form.addEventListener("submit", function(e){{
+            if(ongoing){{
+                e.preventDefault();
+                setStatus("⏳ Waiting for check to finish...", "#fff");
+            }}
+        }});
+    }})();
+    </script>
+
+    <script>
         const expiresAt = new Date("{expires_at.isoformat()}").getTime();
         function updateTimer() {{
             const now = new Date().getTime();
@@ -770,9 +886,11 @@ def bypass():
         updateTimer();
         const timerInterval = setInterval(updateTimer, 1000);
     </script>
-    """
-)
+        """
+    )
+
     return render_template_string(template)
+
 
 @app.route("/reg", methods=["GET", "POST"])
 @require_activation
@@ -957,3 +1075,4 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
