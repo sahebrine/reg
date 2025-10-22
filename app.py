@@ -710,7 +710,7 @@ def activate():
 
     return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>" + error + "</p>" if error else ""} """))
 @app.route("/api/bypass", methods=["POST"])
-def api_check_session():
+def api_bypass():
     data = request.get_json(silent=True) or {}
     sessionid = data.get("sessionid", "").strip()
     fbid = data.get("fbid", "").strip()
@@ -732,7 +732,7 @@ def api_check_session():
     except Exception as e:
         return  500
 @app.route("/api/changeuser", methods=["POST"])
-def api_check_session():
+def changeuser():
     data = request.get_json(silent=True) or {}
     sessionid = data.get("sessionid", "").strip()
     fbid = data.get("fbid", "").strip()
