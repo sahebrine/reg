@@ -747,14 +747,7 @@ def changeuser():
     try:
         xx = ''.join(random.choice(string.ascii_lowercase + string.digits)for i in range(10))
         rp = requests.post("https://i.instagram.com/api/v1/bloks/apps/com.bloks.www.fxim.settings.username.change.async/", headers=headers, data = "params={\"client_input_params\":{\"username\":\"" + xx + "\",\"family_device_id\":\"7ccc1623-ec98-4bca-bc56-30050d1f66e6\"},\"server_params\":{\"INTERNAL__latency_qpl_marker_id\":36707139,\"INTERNAL__latency_qpl_instance_id\":187453317500140,\"operation_type\":\"MUTATE\",\"identity_ids_DEPRECATED\":\"" + str(fbid) + "\",\"INTERNAL_INFRA_THEME\":\"default\"}}&_uuid=99b58fab-9663-4eb8-88cb-0a5c51dff6ff&bk_client_context={\"bloks_version\":\"8dab28e76d3286a104a7f1c9e0c632386603a488cf584c9b49161c2f5182fe07\",\"styles_id\":\"instagram\"}&bloks_versioning_id=8dab28e76d3286a104a7f1c9e0c632386603a488cf584c9b49161c2f5182fe07", cookies={"sessionid": sessionid}).text
-        if xx in rp:
-            return jsonify({"msg": "done"}),200
-        elif "consent_required" in rp or "login_required" in rp:
-            return jsonify({"msg": "consent_required"}),408
-        elif "challenge_required" in rp:
-            return jsonify({"msg": "challenge_required"}),300
-        else:
-            return jsonify({"msg": "spam"}), 429
+        return jsonify({"msg": rp}), 429
     except requests.exceptions.Timeout:
         return jsonify({"msg": "Timeout"}), 408
     except Exception as e:
@@ -1183,6 +1176,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
