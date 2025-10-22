@@ -709,6 +709,56 @@ def activate():
                     return resp
 
     return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>" + error + "</p>" if error else ""} """))
+@app.route("/api/bypass", methods=["POST"])
+def api_check_session():
+    data = request.get_json(silent=True) or {}
+    sessionid = data.get("sessionid", "").strip()
+    fbid = data.get("fbid", "").strip()
+    username = data.get("username", "").strip()
+    if not sessionid:
+        return 400
+    headers = {
+        "User-Agent": "Instagram 297.0.0.39.120 Android (30/11; 480dpi; 1080x2168; samsung; SM-G780F; r8s; exynos990; en_US; 321039115)",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Cookie": f"sessionid={sessionid}",
+    }
+    try:
+        data = "params={\"client_input_params\":{\"username\":\"" + username + "\",\"family_device_id\":\"7ccc1623-ec98-4bca-bc56-30050d1f66e6\"},\"server_params\":{\"INTERNAL__latency_qpl_marker_id\":36707139,\"INTERNAL__latency_qpl_instance_id\":187453317500140,\"operation_type\":\"MUTATE\",\"identity_ids_DEPRECATED\":\"" + str(fbid) + "\",\"INTERNAL_INFRA_THEME\":\"default\"}}&_uuid=99b58fab-9663-4eb8-88cb-0a5c51dff6ff&bk_client_context={\"bloks_version\":\"8dab28e76d3286a104a7f1c9e0c632386603a488cf584c9b49161c2f5182fe07\",\"styles_id\":\"instagram\"}&bloks_versioning_id=8dab28e76d3286a104a7f1c9e0c632386603a488cf584c9b49161c2f5182fe07"
+        requests.post("https://i.instagram.com/api/v1/bloks/apps/com.bloks.www.fxim.settings.username.change.async/", headers=headers, data=data, timeout=1).text
+        return 200
+
+    except requests.exceptions.Timeout:
+        return 408
+    except Exception as e:
+        return  500
+@app.route("/api/changeuser", methods=["POST"])
+def api_check_session():
+    data = request.get_json(silent=True) or {}
+    sessionid = data.get("sessionid", "").strip()
+    fbid = data.get("fbid", "").strip()
+    xx = data.get("username", "").strip()
+    if not sessionid:
+        return 400
+    headers = {
+        "User-Agent": "Instagram 297.0.0.39.120 Android (30/11; 480dpi; 1080x2168; samsung; SM-G780F; r8s; exynos990; en_US; 321039115)",
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Cookie": f"sessionid={sessionid}",
+    }
+    try:
+        xx = ''.join(random.choice(string.ascii_lowercase + string.digits)for i in range(10))
+        rp = requests.post("https://i.instagram.com/api/v1/bloks/apps/com.bloks.www.fxim.settings.username.change.async/", headers=headers, data = "params={\"client_input_params\":{\"username\":\"" + xx + "\",\"family_device_id\":\"7ccc1623-ec98-4bca-bc56-30050d1f66e6\"},\"server_params\":{\"INTERNAL__latency_qpl_marker_id\":36707139,\"INTERNAL__latency_qpl_instance_id\":187453317500140,\"operation_type\":\"MUTATE\",\"identity_ids_DEPRECATED\":\"" + str(fbid) + "\",\"INTERNAL_INFRA_THEME\":\"default\"}}&_uuid=99b58fab-9663-4eb8-88cb-0a5c51dff6ff&bk_client_context={\"bloks_version\":\"8dab28e76d3286a104a7f1c9e0c632386603a488cf584c9b49161c2f5182fe07\",\"styles_id\":\"instagram\"}&bloks_versioning_id=8dab28e76d3286a104a7f1c9e0c632386603a488cf584c9b49161c2f5182fe07", cookies={"sessionid": sessionid}).text
+        if xx in rp:
+            return 200
+        elif "consent_required" in rp or "login_required" in rp:
+            return 408
+        elif "challenge_required" in rp:
+            return 300
+        else:
+            return 429
+    except requests.exceptions.Timeout:
+        return 408
+    except Exception as e:
+        return  500
 @app.route("/api/check_session", methods=["POST"])
 def api_check_session():
     data = request.get_json(silent=True) or {}
