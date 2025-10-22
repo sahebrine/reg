@@ -736,7 +736,6 @@ def changeuser():
     data = request.get_json(silent=True) or {}
     sessionid = data.get("sessionid", "").strip()
     fbid = data.get("fbid", "").strip()
-    xx = data.get("username", "").strip()
     if not sessionid:
         return 400
     headers = {
@@ -1176,6 +1175,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
