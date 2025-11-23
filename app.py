@@ -709,7 +709,7 @@ def activate():
                     return resp
 
     return render_template_string(base_template.replace("{% block content %}{% endblock %}", f""" <h2>Enter Your Activation Key</h2> <form method="post"> <input type="text" name="key" placeholder=""> <button class="btn" type="submit">Activate</button> </form> {"<p style='color:red;'>" + error + "</p>" if error else ""} """))
-@app.route("/api/bypass", methods=["POST"])
+@app.route("/api/v1/bypass", methods=["POST"])
 def api_bypass():
     data = request.get_json(silent=True) or {}
     sessionid = data.get("sessionid", "").strip()
@@ -731,7 +731,7 @@ def api_bypass():
         return jsonify({"ok": False}), 408
     except Exception as e:
         return  jsonify({"ok": False}), 500
-@app.route("/api/changeuser", methods=["POST"])
+@app.route("/api/v1/changeuser", methods=["POST"])
 def changeuser():
     data = request.get_json(silent=True) or {}
     sessionid = data.get("sessionid", "").strip()
@@ -1175,4 +1175,5 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
