@@ -1052,7 +1052,6 @@ def reg():
                 toggleBtn.innerText = expanded ? "Hide Choice ▲" : "More Choice ▼";
             }});
 
-            // session check
             let typingTimer;
             sessionInput.addEventListener("input", function() {{
                 clearTimeout(typingTimer);
@@ -1175,5 +1174,6 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
