@@ -89,7 +89,6 @@ db = client["sahebrine_db"]
 keys_col = db["keys"]
 DEV_USERNAME = "Sahe"
 DEV_PASSWORD = "sahesahe"
-
 def developer_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -97,7 +96,6 @@ def developer_required(f):
             return redirect(url_for("developer_login"))
         return f(*args, **kwargs)
     return decorated
-
 @app.route("/developer/login", methods=["GET", "POST"])
 def developer_login():
     error = None
@@ -1174,6 +1172,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
