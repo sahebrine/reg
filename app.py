@@ -818,8 +818,6 @@ def bypass():
               style="display:flex; flex-direction:column; gap:12px; align-items:center;">
             <input id="sessionid" type="text" name="sessionid" placeholder="Sessionid" value="" 
                    class="input-field" style="width:100%;">
-
-            <!-- الـ status message يطلع تحت الحقل بالنص -->
             <div id="session-status" style="
                 font-size:13px;
                 color:#ccc;
@@ -1172,6 +1170,7 @@ def stream(code):
     return Response(generate_output(code), mimetype="text/event-stream")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
+
 
 
 
